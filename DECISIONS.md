@@ -140,7 +140,7 @@ auto_release = before_qty - LastQty - LeavesQty
 
 ## D-20260917-11 — CL2EX admission is an atomic reserve-plus-context transaction
 
-**Status:** Adopted.
+**Status:** Adopted, with AMU response semantics clarified by D-20260918-14.
 
 **Decision:** A policy-approved HFT order is not accepted until both the futures-state RESERVE and the outstanding-order AMU INSERT succeed. The ordering is RESERVE first, then INSERT. If INSERT fails because the key exists, the table is full, or another store error occurs, the controller must issue an exact RELEASE rollback before returning the reject. If rollback itself fails, the order remains rejected and the result is escalated to `ADMISSION_ROLLBACK_FAILED`; explicit recovery is required.
 
@@ -158,7 +158,7 @@ The original frozen-HFT 256-bit payload is carried alongside the transaction and
 
 ## D-20260917-12 — Close I3 atomic CL2EX admission at the U50 OOC evidence layer
 
-**Status:** Adopted.
+**Status:** Physical/OOC closure remains adopted; original actual-AMU functional-closure wording is narrowed by D-20260918-14.
 
 **Decision:** Accept the I3 frozen-HFT mapping/policy + futures RESERVE/rollback + real pinned RMIC AMU INSERT composition as physically closed at 156.25 MHz. Preserve the I3 architecture for the next full-datapath insertion phase rather than reworking mapping or admission for additional timing margin.
 
@@ -166,7 +166,7 @@ The original frozen-HFT 256-bit payload is carried alongside the transaction and
 
 **Evidence:** `docs/results/i3_atomic_cl2ex_ooc_postroute.md`; I3 atomic/order-gate/fault-injection regressions; packaged Vivado I3 OOC reports.
 
-**Claim limit:** This closes the atomic CL2EX gate as an OOC subsystem only. It does not establish end-to-end HFT R01 behavior, full-system timing, board packet latency, TAIFEX SPAN, or exchange conformance.
+**Claim limit:** The physical timing/resource result is valid. D-20260918-14 records a later-discovered actual-AMU INSERT response contract mismatch that the original CI stub hid; real-AMU functional admission closure is therefore established only after that correction is exercised in I4.
 
 ---
 
@@ -185,6 +185,22 @@ CL admission and committed execution reconciliation share exactly one futures-st
 **Evidence:** `rtl/integration/hft_rmic_dual_order_source_v1.sv`; `rtl/integration/hft_rmic_shared_core_v1.sv`; `rtl/integration/hft_rmic_r01_path_v1.sv`; `tb/tb_hft_rmic_shared_core_v1.sv`; `tb/tb_hft_rmic_r01_path_stub_v1.sv`; PR #3 CI.
 
 **Claim limit:** The I4 owner lock is correctness-first serialization and does not claim CL2EX/EX2CL concurrency or II=1. Exact frozen R01 byte parity and the real-AMU U50 risk-to-R01 physical composition remain separate local gates until their packaged evidence is reviewed.
+
+---
+
+## D-20260918-14 — Bind integration tests to the frozen AMU response contract
+
+**Status:** Adopted; clarifies D-20260917-11 and narrows the functional portion of D-20260917-12.
+
+**Decision:** Treat the pinned RMIC AMU's operation-specific `rsp_found` meaning as authoritative. A successful INSERT of a new key is `rsp_ok=1`, `rsp_status=OK`, `rsp_found=0`; INSERT with an existing key reports `rsp_ok=0`, `rsp_status=EXISTS`, `rsp_found=1`. LOOKUP/UPDATE/DELETE success reports `found=1`. CL2EX admission therefore accepts INSERT on `rsp_ok && status==OK` and must not require `found=1`.
+
+The HFT_RMIC AMU CI stub and all order-store setup tests must reproduce this contract. UPDATE response payload is not used as the source of the newly written context; a subsequent LOOKUP verifies the new value.
+
+**Why:** I4 real pinned-AMU/frozen-encoder XSim produced 80 baseline R01 bytes but zero integrated bytes with a held risk reject. Source audit showed the frozen AMU intentionally leaves `found=0` on a new INSERT, while the integration stub had incorrectly returned `found=1` and the admission controller required it. The mismatch caused every real-AMU new INSERT to be rolled back and rejected even though synthesis/place/route were healthy.
+
+**Evidence:** pinned `deps/RMIC/rtl/amu_banked_double_hash_v2.sv`; uploaded `HFT_RMIC_i4_r01_parity_xsim_20260918-024121.zip`; corrected `rtl/integration/hft_rmic_cl2ex_admission_v1.sv`; corrected `tb/stubs/amu_banked_double_hash_v2_stub.sv`; corrected order-context/execution regressions; exact-head CI after the correction.
+
+**Claim correction:** I3's reported WNS/TNS/resource/power/routing evidence remains valid. Its original CI did not prove the real-AMU new-INSERT functional response contract because the stub encoded different semantics. Real-AMU functional admission evidence must come from I4 parity/combined tests after this correction.
 
 ---
 
