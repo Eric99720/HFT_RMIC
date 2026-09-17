@@ -75,7 +75,7 @@ Routing errors      0
 Vectorless power 2.324 W
 ```
 
-The first physical attempt exposed a structural state/margin path at routed WNS `-6.866 ns`; the design was pipelined rather than relaxed with multicycle constraints. See [`docs/results/i2_futures_state_ooc_postroute.md`](docs/results/i2_futures_state_ooc_postroute.md) and decision `D-20260917-10`.
+See [`docs/results/i2_futures_state_ooc_postroute.md`](docs/results/i2_futures_state_ooc_postroute.md) and decision `D-20260917-10`.
 
 ## I3 closed hardware result
 
@@ -95,7 +95,7 @@ Routing errors      0
 Vectorless power 2.278 W
 ```
 
-The routed worst path remains inside the frozen AMU BRAM candidate/match/forwarding path; mapping, policy and rollback logic are not the timing bottleneck. See [`docs/results/i3_atomic_cl2ex_ooc_postroute.md`](docs/results/i3_atomic_cl2ex_ooc_postroute.md) and decision `D-20260917-12`.
+The routed worst path remains inside the frozen AMU BRAM candidate/match/forwarding path. See [`docs/results/i3_atomic_cl2ex_ooc_postroute.md`](docs/results/i3_atomic_cl2ex_ooc_postroute.md) and decision `D-20260917-12`.
 
 The v1 margin model is host-configured `margin_per_contract × gross open exposure`; it is a research risk-budget model, not a TAIFEX SPAN claim.
 
@@ -117,14 +117,12 @@ xcu50-fsvh2104-2-e
 
 ## Project workflow
 
-Start with `CURRENT_PHASE.md`, `docs/README.md`, the active ExecPlan and `AGENTS.md`.
-
-`docs/project_state.json` is the canonical shared-state source. Feature/research work uses one `codex/<phase-id>` branch and one PR through phase closure. Do not feature-commit directly to `main`.
+Start with `CURRENT_PHASE.md`, `docs/README.md`, the active ExecPlan and `AGENTS.md`. `docs/project_state.json` is the canonical shared-state source. Feature/research work uses one `codex/<phase-id>` branch and one PR through phase closure.
 
 ## External network/PHY candidate
 
-The junior U50/network archive remains a selective migration candidate only. TCP-options-aware RX parsing, SYN retry, optional static-MAC lab mode and the PCS/GT backend are candidates for a dedicated migration phase; the frozen HFT pin remains unchanged. See `docs/research_notes/hft_network_candidate_audit.md` and `D-20260917-09`.
+The junior U50/network archive remains a selective migration candidate only. TCP-options-aware RX parsing, SYN retry, optional static-MAC lab mode and the PCS/GT backend are candidates for a dedicated migration phase; the frozen HFT pin remains unchanged.
 
 ## Evidence policy
 
-Claims are separated into source/spec, functional simulation, synthesis/OOC, post-route and hardware/live-system evidence. Simulation latency is not board latency; routed timing is not physical packet latency; vectorless power is not measured board power. See [`docs/results_policy.md`](docs/results_policy.md).
+Claims are separated into source/spec, functional simulation, synthesis/OOC, post-route and hardware/live-system evidence. Simulation latency is not board latency; routed timing is not physical packet latency; vectorless power is not measured board power.
