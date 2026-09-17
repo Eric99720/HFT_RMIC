@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "record_revision": "2026-09-17-i2-functional-closed-v1",
-  "observed_at_utc": "2026-09-17T11:38:00Z",
+  "record_revision": "2026-09-17-i2-closed-v1",
+  "observed_at_utc": "2026-09-17T15:48:00Z",
   "goal": "Integrate the frozen dual-XGMII HFT baseline with the frozen RMIC M5.4 transactional core without modifying either upstream, while closing TAIFEX futures accounting, execution idempotency, safety-policy, timing, and end-to-end validation gaps.",
-  "handoff": "I2 functional integration is CI-verified: multi-account futures state, futures order context over the frozen AMU contract, committed R02/R32 trade/cancel/reduce reconciliation, R03 reject release, replay/duplicate fail-closed checks, and the I2 OOC composition compile-smoke all pass. Actual Vivado OOC/post-route evidence is the only remaining I2 gate.",
-  "next_action": "Run the prepared Vivado 2022.1 I2 OOC implementation with the real pinned RMIC XPM AMU, then review the packaged utilization/timing/DRC/power reports before closing PR #1.",
+  "handoff": "I2 is complete. Multi-account/product futures state, order context over the real pinned RMIC AMU, committed R02/R32 and R03 reconciliation, replay/idempotency defenses, reset recovery, and 156.25 MHz U50 OOC timing closure are all verified at their stated evidence layers.",
+  "next_action": "Merge PR #1, create the I3 phase branch, and build the CL2EX futures risk gate with atomic futures reservation plus order-context admission before the frozen HFT R01 encoder.",
   "active_plan": "docs/exec_plans/2026-09-17-i2-futures-state-manager.md",
-  "decision": "D-20260917-08",
+  "decision": "D-20260917-10",
   "phase": {
     "id": "I2",
     "name": "Futures State Manager",
-    "status": "VERIFYING",
+    "status": "COMPLETE",
     "branch": "codex/i2-futures-state-manager",
     "pr": 1
   },
@@ -39,7 +39,7 @@
     },
     {
       "id": "I2-04",
-      "status": "VERIFYING",
+      "status": "COMPLETE",
       "title": "Measure I2 real-AMU OOC timing/resources",
       "acceptance": "Vivado 2022.1 OOC composition using the pinned RMIC XPM AMU at 6.400 ns reports real block RAM use, WNS >= 0, TNS = 0, zero routing errors and reviewed utilization/DRC/power evidence."
     },
@@ -103,7 +103,13 @@
       "date": "2026-09-17",
       "evidence": "scripts/run_i2_ooc_impl.ps1",
       "id": "I2-OOC-HARNESS-READY",
-      "summary": "Real-AMU I2 OOC Vivado flow, packaging and CI compile-smoke are prepared and passing; actual Vivado routed evidence remains pending local execution."
+      "summary": "Real-AMU I2 OOC Vivado flow, packaging and CI compile-smoke are prepared and passing."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "docs/results/i2_futures_state_ooc_postroute.md",
+      "id": "I2-OOC-POSTROUTE",
+      "summary": "Real-AMU I2 U50 OOC closes at 156.25 MHz after structural state/margin pipelining: synth WNS +2.318 ns, routed WNS +1.078 ns, TNS 0, 3396 LUT, 2383 FF, 19 RAMB36 + 1 RAMB18, 10 DSP, and zero routing errors."
     }
   ]
 }
