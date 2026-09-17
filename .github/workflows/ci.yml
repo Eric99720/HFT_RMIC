@@ -19,6 +19,9 @@ jobs:
       - name: Check repository layout
         run: python -B scripts/check_repository_layout.py
 
+      - name: Check Vivado 2022.1 Tcl compatibility
+        run: python -B scripts/check_vivado_2022_tcl.py
+
       - name: Check diff whitespace
         run: git diff --check HEAD^ HEAD || git diff --check
 
