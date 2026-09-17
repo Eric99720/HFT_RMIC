@@ -19,87 +19,20 @@ Integration workspace for the frozen `hft-full-system-fpga` HFT baseline and fro
 
 ## Repository contract
 
-This is the only repository where HFT/RMIC integration glue, adapters, futures accounting, policy logic, integration tops and cross-project verification are developed.
+This is the only repository where HFT/RMIC integration glue, adapters, futures accounting, policy logic, integration tops and cross-project verification are developed. The upstream repositories remain pinned read-only submodules.
 
-Pinned read-only upstreams:
+- HFT: `50217fad1fd580f8c451ba893f9035f4be1dc21a`
+- RMIC: `de6c300f4f18b18296f013287ab0eca70d3abb72`
 
-- HFT: `Eric99720/hft-full-system-fpga` @ `50217fad1fd580f8c451ba893f9035f4be1dc21a`
-- RMIC: `Eric99720/RMIC` @ `de6c300f4f18b18296f013287ab0eca70d3abb72`
+## Closed hardware evidence
 
-Do not modify source inside `deps/`. A pin change is a separate migration decision and phase.
+I2 futures state/execution OOC: routed WNS `+1.078 ns`, TNS `0`, 3396 LUT, 2383 FF, 19 RAMB36 + 1 RAMB18, 10 DSP.
 
-## Architecture
+I3 atomic CL2EX gate OOC: routed WNS `+1.583 ns`, TNS `0`, 2392 LUT, 2693 FF, 11 RAMB36 + 1 RAMB18, 10 DSP. Its worst path remains in the frozen AMU.
 
-```text
-market-data XGMII RX
-  -> frozen HFT RX/CDC/order book/strategy
-  -> frozen HFT 256-bit order_data
-  -> HFT_RMIC field/account/product adapters
-  -> HFT_RMIC fail-closed policy layer
-  -> HFT_RMIC futures accounting/state
-  -> frozen RMIC AMU/order-lifecycle primitive
-  -> PASS: original HFT order payload
-  -> frozen TMP R01 encoder / TCP / XGMII TX
+See `docs/results/` and `DECISIONS.md` for scope and claim boundaries.
 
-TAIFEX R02/R32
-  -> frozen HFT TMP decoder
-  -> frozen HFT report-sequence owner
-  -> integration execution metadata
-  -> order_id -> futures order context
-  -> futures FILL / RELEASE reconciliation
-  -> context UPDATE / DELETE
-
-TAIFEX R03 committed reject
-  -> order_id -> futures order context
-  -> release remaining reservation once
-  -> context DELETE
-```
-
-RMIC does not replace the network layer, TMP session, decoder, order book, strategy, encoder, TCP/IP stack or PCS/PMA path.
-
-## I2 closed hardware result
-
-The real pinned AMU plus futures state/reconciliation composition closes on U50 at 156.25 MHz:
-
-```text
-Synthesis WNS   +2.318 ns
-Placed WNS      +1.111 ns
-Routed WNS      +1.078 ns
-TNS              0 ns
-LUT            3396
-FF             2383
-RAMB36           19
-RAMB18            1
-DSP               10
-Routing errors      0
-Vectorless power 2.324 W
-```
-
-See [`docs/results/i2_futures_state_ooc_postroute.md`](docs/results/i2_futures_state_ooc_postroute.md) and decision `D-20260917-10`.
-
-## I3 closed hardware result
-
-The frozen-HFT mapping/policy + atomic futures reserve/rollback + real pinned RMIC AMU CL2EX gate closes on U50 at 156.25 MHz:
-
-```text
-Synthesis WNS   +3.023 ns
-Placed WNS      +2.135 ns
-Routed WNS      +1.583 ns
-TNS              0 ns
-LUT            2392
-FF             2693
-RAMB36           11
-RAMB18            1
-DSP               10
-Routing errors      0
-Vectorless power 2.278 W
-```
-
-The routed worst path remains inside the frozen AMU BRAM candidate/match/forwarding path. See [`docs/results/i3_atomic_cl2ex_ooc_postroute.md`](docs/results/i3_atomic_cl2ex_ooc_postroute.md) and decision `D-20260917-12`.
-
-The v1 margin model is host-configured `margin_per_contract × gross open exposure`; it is a research risk-budget model, not a TAIFEX SPAN claim.
-
-## Setup and verification
+## Setup
 
 ```powershell
 git submodule update --init --recursive
@@ -107,22 +40,12 @@ pwsh .\scripts\setup.ps1
 pwsh .\scripts\preflight.ps1
 ```
 
-Vivado sign-off target unless superseded by a durable decision:
-
-```text
-Vivado 2022.1
-xcu50-fsvh2104-2-e
-156.25 MHz / 6.400 ns
-```
+Target: Vivado 2022.1, U50 `xcu50-fsvh2104-2-e`, 156.25 MHz / 6.400 ns.
 
 ## Project workflow
 
-Start with `CURRENT_PHASE.md`, `docs/README.md`, the active ExecPlan and `AGENTS.md`. `docs/project_state.json` is the canonical shared-state source. Feature/research work uses one `codex/<phase-id>` branch and one PR through phase closure.
-
-## External network/PHY candidate
-
-The junior U50/network archive remains a selective migration candidate only. TCP-options-aware RX parsing, SYN retry, optional static-MAC lab mode and the PCS/GT backend are candidates for a dedicated migration phase; the frozen HFT pin remains unchanged.
+Start with `CURRENT_PHASE.md`, `docs/README.md`, the active ExecPlan and `AGENTS.md`. `docs/project_state.json` is canonical. Feature/research work uses one `codex/<phase-id>` branch and one PR through phase closure.
 
 ## Evidence policy
 
-Claims are separated into source/spec, functional simulation, synthesis/OOC, post-route and hardware/live-system evidence. Simulation latency is not board latency; routed timing is not physical packet latency; vectorless power is not measured board power.
+Simulation is not board evidence; routed timing is not packet latency; vectorless power is not measured board power. Futures margin v1 remains a host-configured research risk-budget model, not TAIFEX SPAN.
