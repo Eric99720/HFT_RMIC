@@ -110,6 +110,20 @@ auto_release = before_qty - LastQty - LeavesQty
 
 ---
 
+## D-20260917-09 — Treat the junior U50 bundle as a selective network/PHY migration candidate, not a replacement baseline
+
+**Status:** Adopted.
+
+**Decision:** Do not replace the frozen HFT submodule with the user-supplied `my_code-20260916T141751Z-1-001(1).zip` snapshot and do not advance the HFT source pin during I2. After I2 closure, evaluate a dedicated network/hardware migration phase that selectively recreates the candidate's useful behavior against the current pinned HFT source: TCP Data-Offset/options support, SYN retry, optional static-MAC lab mode, and a reproducibly pinned U50 10G PCS/GT backend. Preserve official TAIFEX `BODY-LENGTH+12`; the candidate's `+22` mode is legacy captured-PCAP compatibility only.
+
+**Why:** The bundle contains meaningful board-level R01/R02 evidence and timing-clean U50 artifacts, but its embedded HFT snapshot has no Git identity and differs from the frozen baseline in both network and non-network files. Wholesale copying would combine promising network fixes with uncontrolled source-version regression. The copied `verilog-ethernet` tree also lacks an exact Git revision in the bundle.
+
+**Migration acceptance:** port each functional change onto the frozen/current HFT source with focused regressions; register exact third-party PHY source identity; reproduce board R01/R02; perform matched old-vs-candidate timing/resource/latency comparison; then consider a separate HFT_RMIC source-pin migration.
+
+**Evidence and limitations:** `docs/research_notes/hft_network_candidate_audit.md`; supplied archive reports/bitstream/PCAP and XSim studies. The archive's hardware PASS is provided evidence, not yet independently rerun by HFT_RMIC; the `398.9 ns` latency result is simulation/endpoint-attribution evidence, not hardware-measured latency.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:
