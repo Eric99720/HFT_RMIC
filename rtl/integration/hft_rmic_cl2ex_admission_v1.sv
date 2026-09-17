@@ -45,7 +45,6 @@ module hft_rmic_cl2ex_admission_v1 #(
     output reg [31:0]                   result_order_id,
     output reg [ORDER_WIDTH-1:0]        result_order_data,
 
-    // Exclusive client interface to futures state manager.
     output reg                          acct_req_valid,
     input  wire                         acct_req_ready,
     output reg [ACCOUNT_ID_W-1:0]       acct_req_account_id,
@@ -62,7 +61,6 @@ module hft_rmic_cl2ex_admission_v1 #(
     input  wire [1:0]                   acct_rsp_reason_source,
     input  wire [7:0]                   acct_rsp_reason_code,
 
-    // Exclusive client interface to futures order-context store.
     output reg                          store_req_valid,
     input  wire                         store_req_ready,
     output reg [1:0]                    store_req_op,
@@ -157,23 +155,15 @@ module hft_rmic_cl2ex_admission_v1 #(
                 acct_req_event_kind = `HFT_RMIC_ACCT_EVENT_RESERVE;
                 acct_req_order_qty = tx_qty;
             end
-            S_RESERVE_WAIT: begin
-                acct_rsp_ready = 1'b1;
-            end
-            S_INSERT_ISSUE: begin
-                store_req_valid = 1'b1;
-            end
-            S_INSERT_WAIT: begin
-                store_rsp_ready = 1'b1;
-            end
+            S_RESERVE_WAIT: acct_rsp_ready = 1'b1;
+            S_INSERT_ISSUE: store_req_valid = 1'b1;
+            S_INSERT_WAIT: store_rsp_ready = 1'b1;
             S_ROLLBACK_ISSUE: begin
                 acct_req_valid = 1'b1;
                 acct_req_event_kind = `HFT_RMIC_ACCT_EVENT_RELEASE;
                 acct_req_release_qty = tx_qty;
             end
-            S_ROLLBACK_WAIT: begin
-                acct_rsp_ready = 1'b1;
-            end
+            S_ROLLBACK_WAIT: acct_rsp_ready = 1'b1;
             default: begin end
         endcase
     end
@@ -219,24 +209,19 @@ module hft_rmic_cl2ex_admission_v1 #(
                         result_reason_source <= policy_reason_source;
                         result_reason_code <= policy_reason_code;
 
-                        if (policy_pass) begin
-                            state <= S_RESERVE_ISSUE;
-                        end else begin
-                            state <= S_RESP;
-                        end
+                        if (policy_pass) state <= S_RESERVE_ISSUE;
+                        else state <= S_RESP;
                     end
                 end
 
                 S_RESERVE_ISSUE: begin
-                    if (acct_req_valid && acct_req_ready)
-                        state <= S_RESERVE_WAIT;
+                    if (acct_req_valid && acct_req_ready) state <= S_RESERVE_WAIT;
                 end
 
                 S_RESERVE_WAIT: begin
                     if (acct_rsp_valid && acct_rsp_ready) begin
-                        if (acct_rsp_ok) begin
-                            state <= S_INSERT_ISSUE;
-                        end else begin
+                        if (acct_rsp_ok) state <= S_INSERT_ISSUE;
+                        else begin
                             result_accepted <= 1'b0;
                             result_reason_source <= acct_rsp_reason_source;
                             result_reason_code <= acct_rsp_reason_code;
@@ -246,13 +231,18 @@ module hft_rmic_cl2ex_admission_v1 #(
                 end
 
                 S_INSERT_ISSUE: begin
-                    if (store_req_valid && store_req_ready)
-                        state <= S_INSERT_WAIT;
+                    if (store_req_valid && store_req_ready) state <= S_INSERT_WAIT;
                 end
 
                 S_INSERT_WAIT: begin
                     if (store_rsp_valid && store_rsp_ready) begin
-                        if (store_rsp_ok && store_rsp_found && (store_rsp_status == STORE_ST_OK)) begin
+                        // Frozen RMIC AMU INSERT semantics are intentionally
+                        // different from LOOKUP/UPDATE/DELETE: a new-key INSERT
+                        // succeeds with rsp_ok=1, status=OK and rsp_found=0.
+                        // rsp_found=1 on INSERT means an existing key was found
+                        // (status=EXISTS).  Therefore found must not be required
+                        // for a successful insertion.
+                        if (store_rsp_ok && (store_rsp_status == STORE_ST_OK)) begin
                             result_accepted <= 1'b1;
                             result_reason_source <= `HFT_RMIC_REASON_SRC_SYSTEM;
                             result_reason_code <= `HFT_RMIC_SYSTEM_REASON_PASS;
@@ -266,8 +256,7 @@ module hft_rmic_cl2ex_admission_v1 #(
                 end
 
                 S_ROLLBACK_ISSUE: begin
-                    if (acct_req_valid && acct_req_ready)
-                        state <= S_ROLLBACK_WAIT;
+                    if (acct_req_valid && acct_req_ready) state <= S_ROLLBACK_WAIT;
                 end
 
                 S_ROLLBACK_WAIT: begin
@@ -285,12 +274,16 @@ module hft_rmic_cl2ex_admission_v1 #(
                 end
 
                 S_RESP: begin
-                    if (result_ready)
-                        state <= S_IDLE;
+                    if (result_ready) state <= S_IDLE;
                 end
 
                 default: state <= S_IDLE;
             endcase
         end
     end
+
+    // store_rsp_found remains an input because duplicate INSERT responses from
+    // the frozen AMU report found=1/status=EXISTS.  It is deliberately not part
+    // of the new-key INSERT success predicate above.
+    wire _unused_store_rsp_found = store_rsp_found;
 endmodule
