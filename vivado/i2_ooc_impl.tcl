@@ -24,17 +24,36 @@ set sources [list \
     [file join $root "rtl" "integration" "hft_rmic_committed_execution_bridge_v1.sv"] \
     [file join $root "rtl" "ooc" "hft_rmic_i2_ooc_top.sv"]]
 
-foreach f $sources {
+set headers [list \
+    [file join $root "rtl" "include" "hft_rmic_accounting_defs.svh"] \
+    [file join $root "rtl" "include" "hft_rmic_contract.svh"] \
+    [file join $root "rtl" "include" "hft_rmic_policy_defs.svh"] \
+    [file join $root "rtl" "include" "taifex_tmp_v2187_defs.svh"]]
+
+foreach f [concat $headers $sources] {
     if {![file exists $f]} {
         error "required source missing: $f"
     }
 }
 
-read_verilog -sv -include_dirs $incdirs $sources
-auto_detect_xpm
-# In Vivado non-project mode auto_detect_xpm is the required operation. Some
-# releases expose XPM_LIBRARIES through current_project and some do not; report
-# the property when available without making that diagnostic a build blocker.
+# Vivado 2022.1 UG835 documents read_verilog as supporting only
+# -library/-sv/-quiet/-verbose; it does not accept -include_dirs.  Use an
+# ephemeral in-memory project so the standard sources_1 include_dirs property
+# can carry the integration and frozen-RMIC header paths without writing an
+# .xpr project into the repository.
+create_project -in_memory hft_rmic_i2_ooc -part $part
+add_files -norecurse $headers
+add_files -norecurse $sources
+set_property file_type {Verilog Header} [get_files *.svh]
+set_property file_type SystemVerilog [get_files *.sv]
+set_property include_dirs $incdirs [current_fileset]
+set_property top $top [current_fileset]
+
+# Both physical memories instantiate XPM explicitly.  Keep auto_detect_xpm as
+# an acceptance prerequisite; the diagnostic property is optional by release.
+if {[catch {auto_detect_xpm} xpm_err]} {
+    error "auto_detect_xpm failed: $xpm_err"
+}
 set xpm_libs "auto_detect_xpm completed"
 if {![catch {set detected_xpm [get_property XPM_LIBRARIES [current_project]]}]} {
     if {$detected_xpm ne ""} {
@@ -43,10 +62,11 @@ if {![catch {set detected_xpm [get_property XPM_LIBRARIES [current_project]]}]} 
 }
 puts "HFT_RMIC_XPM_LIBRARIES=$xpm_libs"
 
-synth_design -top $top -part $part -mode out_of_context
+synth_design -top $top -part $part -flatten_hierarchy rebuilt -mode out_of_context
 create_clock -name hft_rmic_clk -period 6.400 [get_ports clk]
 
-report_utilization -file [file join $out_dir "utilization_synth.rpt"]
+# Always leave useful pre-route evidence if a later stage fails.
+report_utilization -hierarchical -file [file join $out_dir "utilization_synth.rpt"]
 report_ram_utilization -file [file join $out_dir "ram_utilization_synth.rpt"]
 report_timing_summary -delay_type max -max_paths 20 -file [file join $out_dir "timing_summary_synth.rpt"]
 write_checkpoint -force [file join $out_dir "i2_ooc_synth.dcp"]
@@ -61,21 +81,21 @@ if {[expr {$bram36_count + $bram18_count}] == 0} {
 
 opt_design
 place_design
-report_utilization -file [file join $out_dir "utilization_placed.rpt"]
+report_utilization -hierarchical -file [file join $out_dir "utilization_placed.rpt"]
 report_timing_summary -delay_type max -max_paths 20 -file [file join $out_dir "timing_summary_placed.rpt"]
 write_checkpoint -force [file join $out_dir "i2_ooc_placed.dcp"]
 
 phys_opt_design
 route_design
 
-report_utilization -file [file join $out_dir "utilization_routed.rpt"]
+report_utilization -hierarchical -file [file join $out_dir "utilization_routed.rpt"]
 report_ram_utilization -file [file join $out_dir "ram_utilization_routed.rpt"]
 report_timing_summary -delay_type max -max_paths 50 -file [file join $out_dir "timing_summary_routed.rpt"]
-report_timing -delay_type max -max_paths 50 -sort_by group -file [file join $out_dir "timing_reg2reg.rpt"]
+report_timing -from [get_clocks hft_rmic_clk] -to [get_clocks hft_rmic_clk] -delay_type max -max_paths 50 -nworst 10 -file [file join $out_dir "timing_reg2reg.rpt"]
 report_route_status -file [file join $out_dir "route_status.rpt"]
 report_drc -file [file join $out_dir "drc_routed.rpt"]
 report_power -file [file join $out_dir "power_routed.rpt"]
-report_design_analysis -timing -file [file join $out_dir "design_analysis_timing.rpt"]
+report_design_analysis -timing -setup -max_paths 20 -file [file join $out_dir "design_analysis_timing.rpt"]
 write_checkpoint -force [file join $out_dir "i2_ooc_routed.dcp"]
 
 set worst_paths [get_timing_paths -delay_type max -max_paths 1]
