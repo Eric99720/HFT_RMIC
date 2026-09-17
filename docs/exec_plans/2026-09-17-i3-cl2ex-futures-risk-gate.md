@@ -3,8 +3,9 @@
 ## 1. Phase identity
 
 - Phase: `I3`
-- Status: ACTIVE
+- Status: COMPLETE
 - Branch: `codex/i3-cl2ex-futures-risk-gate`
+- PR: `#2`
 - HFT pin: `50217fad1fd580f8c451ba893f9035f4be1dc21a`
 - RMIC pin: `de6c300f4f18b18296f013287ab0eca70d3abb72`
 - Target clock: 156.25 MHz / 6.400 ns
@@ -33,52 +34,53 @@ AMU INSERT fails after RESERVE
 
 No rejected or half-admitted order is allowed to reach the future R01 path.
 
-## 4. Work items
+## 4. Acceptance closure
 
-### I3-01 — Atomic normalized admission controller
+### I3-01 — Atomic normalized admission controller — COMPLETE
 
-Implement `hft_rmic_cl2ex_admission_v1` as an exclusive client of the I2 futures state manager and order-context store.
-
-Acceptance:
+Verified:
 
 - policy reject performs no state/store mutation;
 - accounting reject performs no store mutation;
 - successful reserve + insert returns accepted exactly once;
 - duplicate/full/store failure after reserve triggers RELEASE rollback;
-- rollback failure is fail-closed and reports recovery required;
+- rollback failure is fail-closed and reports explicit recovery-required failure;
 - output remains stable under result backpressure.
 
-### I3-02 — Frozen-HFT 256-bit order gate
+### I3-02 — Frozen-HFT 256-bit order gate — COMPLETE
 
-Implement `hft_rmic_order_gate_v1` around existing exact maps, field adapter and policy shell.
-
-Acceptance:
+Verified:
 
 - PASS output payload is bit-for-bit identical to input `order_data`;
 - adapter/map/policy rejects never touch state/store;
 - BUY/SELL, account, product, qty, OrdType, TIF and PositionEffect reach the normalized admission request correctly;
 - configuration ambiguity/miss is fail-closed.
 
-### I3-03 — Self-checking CL2EX regressions
+### I3-03 — Self-checking CL2EX regressions — COMPLETE
 
-Cover:
+CI covers normal admission, margin/policy rejects, duplicate/full rollback, rollback-failure injection, mapping/policy failures, result backpressure, context correctness and payload identity.
 
-- BUY OPEN accepted;
-- SELL OPEN accepted without long inventory;
-- BUY/SELL CLOSE inventory checks;
-- margin reject;
-- kill-switch/not-ready/unsupported policy reject;
-- duplicate order ID rollback;
-- order-store-full rollback;
-- downstream result backpressure;
-- accepted payload identity;
-- no leaked reservation on any recoverable store failure.
+### I3-04 — Physical composition gate — COMPLETE
 
-### I3-04 — Physical composition gate
+Real pinned RMIC AMU + futures state + I3 order gate closes on U50 at 6.400 ns:
 
-Compose the real pinned RMIC AMU, pipelined futures state manager and I3 admission controller in an OOC harness. Require BRAM use, full route and WNS >= 0 at 6.400 ns. Full frozen-HFT datapath insertion remains a later phase.
+```text
+Synth WNS    +3.023 ns
+Placed WNS   +2.135 ns
+Routed WNS   +1.583 ns
+TNS           0 ns
+LUT          2392
+FF           2693
+RAMB36         11
+RAMB18          1
+DSP             10
+Routing errors    0
+Power         2.278 W vectorless
+```
 
-## 5. Non-goals
+The worst path remains inside the frozen AMU XPM BRAM candidate/match/forwarding path. See `docs/results/i3_atomic_cl2ex_ooc_postroute.md`.
+
+## 5. Non-goals retained
 
 - modifying either frozen upstream;
 - full HFT top integration;
@@ -90,12 +92,25 @@ Compose the real pinned RMIC AMU, pipelined futures state manager and I3 admissi
 
 ## 6. Evidence policy
 
-CI may use the AMU behavioral contract stub for functional transaction semantics. Collision/XPM/physical claims require local Vivado using the real pinned RMIC AMU. The final full-system HFT latency remains outside I3.
+Functional CI uses the AMU behavioral contract stub only for transaction semantics. Collision/XPM/physical claims use local Vivado with the real pinned RMIC AMU. The final full-system HFT latency remains outside I3.
 
-## 7. Planned deliverables
+## 7. Delivered files
 
 - `rtl/integration/hft_rmic_cl2ex_admission_v1.sv`
 - `rtl/integration/hft_rmic_order_gate_v1.sv`
-- dedicated self-checking TBs and runners
-- I3 OOC top/Tcl/PowerShell package runner
-- durable I3 result document and decision records
+- `tb/tb_hft_rmic_cl2ex_admission_v1.sv`
+- `tb/tb_hft_rmic_cl2ex_admission_fault_v1.sv`
+- `tb/tb_hft_rmic_order_gate_v1.sv`
+- `rtl/ooc/hft_rmic_i3_cl2ex_ooc_top.sv`
+- `vivado/i3_cl2ex_ooc_impl.tcl`
+- `scripts/run_i3_cl2ex_ooc_impl.ps1`
+- `docs/results/i3_atomic_cl2ex_ooc_postroute.md`
+
+## 8. Phase decisions
+
+- D-20260917-11: reserve-first atomic CL2EX admission with deterministic rollback.
+- D-20260917-12: I3 U50 OOC closure accepted at 156.25 MHz.
+
+## 9. Claim limit
+
+I3 establishes atomic CL2EX admission and OOC physical feasibility. It does not establish full frozen-HFT R01 insertion, end-to-end HFT+RMIC latency, board packet latency, TAIFEX SPAN, network/PHY migration or exchange conformance.
