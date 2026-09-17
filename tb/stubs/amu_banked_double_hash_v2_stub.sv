@@ -1,9 +1,14 @@
 `timescale 1ns/1ps
 
-// CI-only behavioral contract stub for the private frozen RMIC AMU dependency.
+// CI-only behavioral contract stub for the frozen RMIC AMU dependency.
 // It verifies integration wrapper packing and AMU operation semantics without
-// pretending to reproduce the bank/hash/BRAM implementation.  Local Vivado
-// integration must compile the real pinned deps/RMIC RTL instead.
+// pretending to reproduce the bank/hash/BRAM implementation. Local Vivado/XSim
+// integration compiles the actual pinned deps/RMIC AMU RTL.
+//
+// Important frozen-AMU response contract:
+// - LOOKUP/UPDATE/DELETE success: rsp_ok=1, rsp_found=1, status=OK.
+// - INSERT new key success:       rsp_ok=1, rsp_found=0, status=OK.
+// - INSERT duplicate:             rsp_ok=0, rsp_found=1, status=EXISTS.
 module amu_banked_double_hash_v2 #(
     parameter integer TABLE_SIZE = 64,
     parameter integer BANKS = 8,
@@ -104,9 +109,11 @@ module amu_banked_double_hash_v2 #(
                             keys[empty_idx] <= req_key;
                             values[empty_idx] <= req_value;
                             rsp_ok <= 1'b1;
-                            rsp_found <= 1'b1;
+                            // Match the real frozen AMU: a new-key INSERT did
+                            // not find a pre-existing entry.
+                            rsp_found <= 1'b0;
                             rsp_status <= ST_OK;
-                            rsp_value <= req_value;
+                            rsp_value <= {VALUE_W{1'b0}};
                         end else begin
                             rsp_status <= ST_FULL;
                         end
@@ -117,7 +124,7 @@ module amu_banked_double_hash_v2 #(
                             rsp_ok <= 1'b1;
                             rsp_found <= 1'b1;
                             rsp_status <= ST_OK;
-                            rsp_value <= req_value;
+                            rsp_value <= values[hit_idx];
                         end else begin
                             rsp_status <= ST_NOT_FOUND;
                         end
