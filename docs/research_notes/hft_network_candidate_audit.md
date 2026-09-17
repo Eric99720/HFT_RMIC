@@ -203,3 +203,14 @@ After I2 physical closure, open a separate HFT network/hardware migration phase 
 8. perform matched old-vs-candidate latency/resource/timing A/B before changing the HFT_RMIC source pin.
 
 Only after that phase passes should `HFT_RMIC` consider a source-pin migration. This preserves the current clean A/B baseline and avoids mixing a promising hardware bring-up package with unrelated source-version drift.
+
+## Planned phase identity
+
+The selective migration should be treated as a dedicated future phase after I2 closes, tentatively:
+
+```text
+N1 — HFT Network / U50 PHY Candidate Migration
+codex/n1-network-phy-migration
+```
+
+It must begin from the then-current `HFT_RMIC/main`, keep the existing HFT pin unchanged during candidate development, and change that pin only at phase closure if all migration acceptance criteria pass.
