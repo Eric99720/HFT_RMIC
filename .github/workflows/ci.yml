@@ -47,3 +47,6 @@ jobs:
 
       - name: Run committed execution reconciliation regression
         run: bash scripts/run_execution_bridge_iverilog.sh
+
+      - name: Compile I2 OOC composition harness
+        run: bash scripts/run_i2_ooc_compile_iverilog.sh

@@ -42,6 +42,10 @@ try {
             Write-Host '[HFT_RMIC] Running committed execution reconciliation regression...'
             & $bash.Source scripts/run_execution_bridge_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'execution reconciliation regression failed' }
+
+            Write-Host '[HFT_RMIC] Compiling I2 OOC composition harness...'
+            & $bash.Source scripts/run_i2_ooc_compile_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I2 OOC composition compile failed' }
         }
     }
 
