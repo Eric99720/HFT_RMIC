@@ -66,6 +66,8 @@ Acceptance:
 - once an owner is chosen, the other client cannot interleave state/store requests;
 - recovery-required remains fail-closed.
 
+Status: COMPLETE in exact-head CI.
+
 ### I4-02 — Dual frozen-HFT order-source risk boundary
 
 Deliver `hft_rmic_dual_order_source_v1` and `hft_rmic_r01_path_v1`.
@@ -78,9 +80,11 @@ Acceptance:
 - only `accepted_order_data` drives the frozen encoder;
 - a policy/accounting/store reject never creates R01 traffic.
 
+Status: COMPLETE in exact-head CI.
+
 ### I4-03 — Functional and byte-parity evidence
 
-CI uses deterministic AMU/encoder contract stubs to close shared ownership and source/handshake semantics. Local Vivado XSim uses the pinned frozen encoder RTL and compares a direct-baseline encoder against the risk-integrated encoder.
+CI uses deterministic AMU/encoder contract stubs to close shared ownership and source/handshake semantics. Local Vivado XSim uses the pinned real RMIC AMU and pinned frozen encoder RTL and compares a direct-baseline encoder against the risk-integrated encoder.
 
 Acceptance:
 
@@ -95,6 +99,8 @@ Local command:
 ```powershell
 pwsh .\scripts\run_i4_r01_parity_xsim.ps1
 ```
+
+Status: VERIFYING. The first real-AMU parity attempt exposed the AMU response-contract issue described in Section 6; the corrected head must be rerun.
 
 ### I4-04 — U50 physical composition gate
 
@@ -116,20 +122,59 @@ Local command:
 pwsh .\scripts\run_i4_r01_path_ooc_impl.ps1
 ```
 
-## 6. Evidence already closed before local sign-off
+Status: VERIFYING. It must be run after corrected parity evidence so the measured composition uses the corrected admission predicate.
 
-GitHub CI now contains:
+## 6. Unexpected real-AMU contract discovery and correction
 
-- I3 atomic admission regressions;
-- I3 order-gate regressions;
-- I4 shared CL2EX/EX2CL ownership regression;
-- I4 dual-source risk-to-encoder regression;
-- I4 focused composition compile-smoke;
-- Vivado 2022.1 Tcl compatibility guard.
+The first local parity package (`HFT_RMIC_i4_r01_parity_xsim_20260918-024121.zip`) compiled and elaborated successfully with the pinned real RMIC AMU and frozen HFT encoder. The direct baseline encoder emitted all 80 R01 bytes, but the integrated path emitted none and held a fail-closed risk reject.
 
-The shared-core regression specifically proves a BUY OPEN -> committed full fill -> SELL CLOSE closed loop against one state/store owner and checks execution priority under simultaneous acquisition.
+Source audit identified the real cause. The frozen AMU's new-key INSERT response is:
 
-## 7. Non-goals
+```text
+rsp_ok     = 1
+rsp_status = OK
+rsp_found  = 0
+```
+
+`rsp_found=1` on INSERT means a pre-existing key was found and the status is `EXISTS`. The original HFT_RMIC CI stub incorrectly returned `found=1` for successful new INSERT, and `hft_rmic_cl2ex_admission_v1` therefore incorrectly required `store_rsp_found` in its success predicate. With the real AMU, every valid new order was reserved, INSERTed successfully, then falsely interpreted as store failure, RELEASE-rolled back and rejected.
+
+Corrections made in I4:
+
+1. CL admission accepts INSERT on `rsp_ok && rsp_status==OK`; `found` is not required.
+2. CI AMU stub now matches the frozen operation-specific `found` semantics.
+3. Order-store regression verifies INSERT success as `found=0`, then LOOKUP verifies payload.
+4. Execution-bridge preload helpers use the same real INSERT contract.
+5. UPDATE payload is verified through a subsequent LOOKUP rather than assuming the response returns the newly written value.
+6. Parity TB has bounded waits and fails immediately with reject source/code if the integrated path is rejected.
+7. Windows parity runner writes console capture to distinct filenames rather than competing with Vivado simulator native log files.
+
+After these changes, the full CI lifecycle stack passes again: order context, committed execution, atomic admission, order gate, shared CL/EX owner, dual-source risk boundary, I2/I3/I4 composition compile-smokes and parity-testbench compile.
+
+Research-integrity handling:
+
+- I3 timing/resource/routing/power evidence remains valid.
+- The I3 result document and `D-20260918-14` explicitly narrow the earlier real-AMU functional-closure wording because the old CI stub encoded different INSERT semantics.
+- frozen RMIC and frozen HFT source pins remain unchanged.
+
+## 7. Evidence closed before corrected local rerun
+
+Exact-head GitHub CI covers:
+
+- adapter/policy/execution metadata;
+- futures accounting and multi-key state manager;
+- real-AMU-contract-aligned order-context wrapper semantics;
+- committed execution reconciliation;
+- atomic CL admission including rollback/fault injection;
+- frozen-HFT order gate;
+- I4 shared CL2EX/EX2CL ownership;
+- I4 dual-source risk-to-encoder boundary;
+- I2/I3/I4 composition compile-smokes;
+- I4 parity-testbench compile;
+- project governance and Vivado 2022.1 Tcl compatibility.
+
+The remaining evidence is deliberately local because it uses the pinned private submodules and Vivado/XSim implementation stack.
+
+## 8. Non-goals
 
 - editing either pinned upstream;
 - changing frozen TMP R01 field packing/checksum behavior;
@@ -139,6 +184,6 @@ The shared-core regression specifically proves a BUY OPEN -> committed full fill
 - CL2EX II=1 optimization;
 - board/live-exchange latency claim.
 
-## 8. Claim limits
+## 9. Claim limits
 
-I4 closes the focused order-to-R01 risk boundary when both local gates pass. Routed OOC timing is not packet latency. XSim byte parity is not board traffic. Full network/PCS-PMA timing and physical end-to-end latency remain later phases.
+I4 closes the focused order-to-R01 risk boundary only after both corrected local gates pass. Routed OOC timing is not packet latency. XSim byte parity is not board traffic. Full network/PCS-PMA timing and physical end-to-end latency remain later phases.
