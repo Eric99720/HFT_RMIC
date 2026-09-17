@@ -23,7 +23,7 @@ try {
         if ($null -eq $bash) {
             Write-Warning 'bash not found; skipping Icarus regressions. Use GitHub CI or Git Bash/WSL.'
         } else {
-            Write-Host '[HFT_RMIC] Running adapter/policy/execution-tap regression...'
+            Write-Host '[HFT_RMIC] Running adapter/policy/execution-meta regression...'
             & $bash.Source scripts/run_adapter_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'adapter regression failed' }
 
@@ -34,6 +34,14 @@ try {
             Write-Host '[HFT_RMIC] Running multi-account futures state-manager regression...'
             & $bash.Source scripts/run_state_manager_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'state-manager regression failed' }
+
+            Write-Host '[HFT_RMIC] Running futures order-context regression...'
+            & $bash.Source scripts/run_order_context_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'order-context regression failed' }
+
+            Write-Host '[HFT_RMIC] Running committed execution reconciliation regression...'
+            & $bash.Source scripts/run_execution_bridge_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'execution reconciliation regression failed' }
         }
     }
 
