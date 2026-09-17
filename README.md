@@ -83,7 +83,8 @@ CI-validated integration behavior includes:
 - R03 exchange-reject remaining-reservation release with delete-once idempotency;
 - stale/duplicate quantity mismatch protection even if a bad old report is presented again;
 - dependency/interface drift and project-governance checks;
-- I2 OOC composition compile-smoke.
+- I2 OOC composition compile-smoke;
+- a Vivado-2022.1 Tcl compatibility guard for the local OOC flow.
 
 The v1 margin model is host-configured `margin_per_contract × gross open exposure`; it is a research risk-budget model, **not** a TAIFEX SPAN claim.
 
@@ -159,6 +160,8 @@ pwsh .\scripts\run_i2_ooc_impl.ps1
 
 The Vivado runner verifies dependency pins, compiles the real pinned `deps/RMIC` XPM AMU, requires block RAM after synthesis, routes the I2 composition at 6.400 ns, rejects negative routed WNS, and packages reports/logs into `build\packages\HFT_RMIC_i2_ooc_impl_*.zip`.
 
+The first local I2 invocation exposed only a Vivado 2022.1 Tcl API mismatch (`read_verilog -include_dirs` is unsupported). The current flow uses an ephemeral in-memory fileset with `set_property include_dirs` and is protected by CI so that unsupported syntax cannot silently return.
+
 Vivado sign-off target unless superseded by a durable decision:
 
 ```text
@@ -166,6 +169,12 @@ Vivado 2022.1
 xcu50-fsvh2104-2-e
 156.25 MHz / 6.400 ns
 ```
+
+## External network/PHY candidate
+
+A user-supplied junior U50/network bundle has been audited but is **not** part of the frozen HFT baseline. It contains useful candidates — TCP-options-aware RX parsing, SYN retry, optional static-MAC lab mode, and a custom U50 10G PCS/GT backend with supplied board evidence — but its embedded HFT source snapshot has unpinned/version-drifted content outside the network overrides.
+
+Therefore the current HFT pin is unchanged. Selective migration is deferred to a dedicated phase with exact source pinning, focused regressions, board reproduction and matched A/B measurements. See [`docs/research_notes/hft_network_candidate_audit.md`](docs/research_notes/hft_network_candidate_audit.md) and `D-20260917-09`.
 
 ## Evidence policy
 
@@ -185,8 +194,8 @@ rtl/ooc/           physical-composition-only OOC harnesses
 rtl/include/       integration contracts/reason/protocol constants
 tb/                self-checking integration-owned testbenches
 scripts/           setup, preflight, regression, Vivado and repository checks
-vivado/            non-project Vivado implementation flows
-docs/              architecture/contracts/project records/exec plans
+vivado/            non-project/in-memory Vivado implementation flows
+docs/              architecture/contracts/project records/exec plans/research notes
 build/ reports/    local generated output; ignored
 ```
 
