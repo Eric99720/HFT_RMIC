@@ -47,7 +47,7 @@ module tb_hft_rmic_shared_core_v1;
 
     task send_exec(input [31:0] oid,input [7:0] exectype,input side,input [7:0] pe,input [15:0] lastq,input [15:0] leaves,input [15:0] beforeq);
         integer guard; begin
-            @(negedge clk); exec_commit_msg_type=`HFT_RMIC_TAIFEX_MSG_R02; exec_commit_status_code=0; exec_commit_exec_type=exectype; exec_commit_order_id=oid; exec_commit_side=side; exec_commit_position_effect=pe; exec_commit_order_price=32'd100; exec_commit_last_qty=lastq; exec_commit_leaves_qty=leaves; exec_commit_before_qty=beforeq; exec_commit_valid=1; guard=0;
+            @(negedge clk); exec_commit_msg_type=`HFT_RMIC_TAIFEX_MSG_R02; exec_commit_status_code=0; exec_commit_exec_type=exectype; exec_commit_order_id=oid; exec_commit_side=side; exec_commit_position_effect=pe; exec_commit_order_price=32'd100; exec_commit_last_qty=lastq; exec_commit_leaves_qty=leaves; exec_commit_before_qty=beforeq; exec_commit_valid=1; guard=0; #1;
             while(!exec_commit_ready) begin
                 @(posedge clk); #1; guard=guard+1;
                 if(guard>200) begin
