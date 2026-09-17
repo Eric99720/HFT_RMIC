@@ -6,7 +6,7 @@
   "handoff": "I3 is complete. Frozen-HFT order mapping/policy, atomic futures reservation plus real-AMU order-context insertion, deterministic rollback/fault escalation, byte-identical accepted payload, and 156.25 MHz U50 OOC timing closure are verified at their stated evidence layers.",
   "next_action": "Merge PR #2, create I4, and insert the closed I3 risk gate into a new integration-owned wrapper around the frozen HFT order_data to TMP R01 path without modifying the HFT submodule.",
   "active_plan": "docs/exec_plans/2026-09-17-i3-cl2ex-futures-risk-gate.md",
-  "decision": "D-20260917-11",
+  "decision": "D-20260917-12",
   "phase": {
     "id": "I3",
     "name": "Atomic CL2EX Futures Risk Gate",
@@ -51,83 +51,18 @@
     }
   ],
   "milestones": [
-    {
-      "date": "2026-09-17",
-      "evidence": "docs/source_baselines.md",
-      "id": "I0-FROZEN-SOURCES",
-      "summary": "HFT and RMIC upstreams pinned as read-only submodules at frozen pre-integration baselines."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "docs/rmic_gap_analysis.md",
-      "id": "I1-ADAPTER-POLICY",
-      "summary": "Order field mapping and fail-closed policy shell established with integration-level reject namespace."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "docs/taifex_futures_accounting_contract_v1.md",
-      "id": "I1-FUTURES-ACCOUNTING",
-      "summary": "Futures accounting v1 separates long/short and OPEN/CLOSE semantics using a host-configured margin-per-contract research model; not a TAIFEX SPAN claim."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "rtl/adapters/hft_tmp_exec_position_tap.sv",
-      "id": "I1-EXEC-META-TAP",
-      "summary": "Integration-owned R02/R32 fixed-offset tap captures PositionEffect and before_qty fields missing from the frozen HFT decoder; mutation authority remains external committed-report ownership."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "AGENTS.md",
-      "id": "I2-GOVERNANCE",
-      "summary": "LOB-inspired phase governance adopted: canonical project state, append-only decisions, living ExecPlan, one phase branch/PR, evidence-layer boundaries and mechanical governance CI."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "tb/tb_hft_rmic_futures_state_manager_v1.sv",
-      "id": "I2-STATE-MANAGER-FUNCTIONAL",
-      "summary": "Multi-account/product futures state manager regression closed key isolation, OPEN/CLOSE long/short semantics, margin reject, fail-closed ownership, configuration priority and reset recovery."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "rtl/integration/hft_rmic_futures_order_store_v1.sv",
-      "id": "I2-ORDER-CONTEXT",
-      "summary": "A 96-bit futures order context keyed by order_id reuses the frozen RMIC AMU contract without reusing stock-like account accounting."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "tb/tb_hft_rmic_committed_execution_bridge_v1.sv",
-      "id": "I2-COMMITTED-EXECUTION",
-      "summary": "Committed R02/R32 and R03 reconciliation passes partial/final fill, terminal release, cancel, reduce, replay/stale fail-closed and release-once scenarios."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "docs/results/i2_futures_state_ooc_postroute.md",
-      "id": "I2-OOC-POSTROUTE",
-      "summary": "Real-AMU I2 U50 OOC closes at 156.25 MHz after structural state/margin pipelining: routed WNS +1.078 ns, TNS 0, 3396 LUT, 2383 FF, 19 RAMB36 + 1 RAMB18, 10 DSP and zero routing errors."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "tb/tb_hft_rmic_cl2ex_admission_v1.sv",
-      "id": "I3-ATOMIC-ADMISSION",
-      "summary": "Atomic CL2EX admission regression proves policy/accounting no-mutation, successful reserve+insert, duplicate/full rollback, stable result backpressure and no leaked reservation after recoverable store failure."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "tb/tb_hft_rmic_cl2ex_admission_fault_v1.sv",
-      "id": "I3-ROLLBACK-FAIL-CLOSED",
-      "summary": "Fault injection proves an admission rollback failure can never accept an order and is escalated to an explicit recovery-required system failure."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "tb/tb_hft_rmic_order_gate_v1.sv",
-      "id": "I3-HFT-ORDER-GATE",
-      "summary": "Frozen-HFT order-gate regression closes exact account/product mapping, Side translation, mapping/policy fail-closed behavior, normalized context correctness and byte-identical accepted payload."
-    },
-    {
-      "date": "2026-09-17",
-      "evidence": "docs/results/i3_atomic_cl2ex_ooc_postroute.md",
-      "id": "I3-OOC-POSTROUTE",
-      "summary": "Real-AMU I3 atomic CL2EX U50 OOC closes at 156.25 MHz: synth WNS +3.023 ns, routed WNS +1.583 ns, TNS 0, 2392 LUT, 2693 FF, 11 RAMB36 + 1 RAMB18, 10 DSP, zero routing errors, and the worst path remains inside the frozen AMU."
-    }
+    {"date":"2026-09-17","evidence":"docs/source_baselines.md","id":"I0-FROZEN-SOURCES","summary":"HFT and RMIC upstreams pinned as read-only submodules at frozen pre-integration baselines."},
+    {"date":"2026-09-17","evidence":"docs/rmic_gap_analysis.md","id":"I1-ADAPTER-POLICY","summary":"Order field mapping and fail-closed policy shell established with integration-level reject namespace."},
+    {"date":"2026-09-17","evidence":"docs/taifex_futures_accounting_contract_v1.md","id":"I1-FUTURES-ACCOUNTING","summary":"Futures accounting v1 separates long/short and OPEN/CLOSE semantics using a host-configured margin-per-contract research model; not a TAIFEX SPAN claim."},
+    {"date":"2026-09-17","evidence":"rtl/adapters/hft_tmp_exec_position_tap.sv","id":"I1-EXEC-META-TAP","summary":"Integration-owned R02/R32 fixed-offset tap captures PositionEffect and before_qty fields missing from the frozen HFT decoder; mutation authority remains external committed-report ownership."},
+    {"date":"2026-09-17","evidence":"AGENTS.md","id":"I2-GOVERNANCE","summary":"LOB-inspired phase governance adopted: canonical project state, append-only decisions, living ExecPlan, one phase branch/PR, evidence-layer boundaries and mechanical governance CI."},
+    {"date":"2026-09-17","evidence":"tb/tb_hft_rmic_futures_state_manager_v1.sv","id":"I2-STATE-MANAGER-FUNCTIONAL","summary":"Multi-account/product futures state manager regression closed key isolation, OPEN/CLOSE long/short semantics, margin reject, fail-closed ownership, configuration priority and reset recovery."},
+    {"date":"2026-09-17","evidence":"rtl/integration/hft_rmic_futures_order_store_v1.sv","id":"I2-ORDER-CONTEXT","summary":"A 96-bit futures order context keyed by order_id reuses the frozen RMIC AMU contract without reusing stock-like account accounting."},
+    {"date":"2026-09-17","evidence":"tb/tb_hft_rmic_committed_execution_bridge_v1.sv","id":"I2-COMMITTED-EXECUTION","summary":"Committed R02/R32 and R03 reconciliation passes partial/final fill, terminal release, cancel, reduce, replay/stale fail-closed and release-once scenarios."},
+    {"date":"2026-09-17","evidence":"docs/results/i2_futures_state_ooc_postroute.md","id":"I2-OOC-POSTROUTE","summary":"Real-AMU I2 U50 OOC closes at 156.25 MHz after structural state/margin pipelining: routed WNS +1.078 ns, TNS 0, 3396 LUT, 2383 FF, 19 RAMB36 + 1 RAMB18, 10 DSP and zero routing errors."},
+    {"date":"2026-09-17","evidence":"tb/tb_hft_rmic_cl2ex_admission_v1.sv","id":"I3-ATOMIC-ADMISSION","summary":"Atomic CL2EX admission regression proves policy/accounting no-mutation, successful reserve+insert, duplicate/full rollback, stable result backpressure and no leaked reservation after recoverable store failure."},
+    {"date":"2026-09-17","evidence":"tb/tb_hft_rmic_cl2ex_admission_fault_v1.sv","id":"I3-ROLLBACK-FAIL-CLOSED","summary":"Fault injection proves an admission rollback failure can never accept an order and is escalated to an explicit recovery-required system failure."},
+    {"date":"2026-09-17","evidence":"tb/tb_hft_rmic_order_gate_v1.sv","id":"I3-HFT-ORDER-GATE","summary":"Frozen-HFT order-gate regression closes exact account/product mapping, Side translation, mapping/policy fail-closed behavior, normalized context correctness and byte-identical accepted payload."},
+    {"date":"2026-09-17","evidence":"docs/results/i3_atomic_cl2ex_ooc_postroute.md","id":"I3-OOC-POSTROUTE","summary":"Real-AMU I3 atomic CL2EX U50 OOC closes at 156.25 MHz: synth WNS +3.023 ns, routed WNS +1.583 ns, TNS 0, 2392 LUT, 2693 FF, 11 RAMB36 + 1 RAMB18, 10 DSP, zero routing errors, and the worst path remains inside the frozen AMU."}
   ]
 }
