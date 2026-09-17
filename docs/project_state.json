@@ -19,36 +19,11 @@
     "rmic": "de6c300f4f18b18296f013287ab0eca70d3abb72"
   },
   "tasks": [
-    {
-      "id": "I3-01",
-      "status": "COMPLETE",
-      "title": "Implement atomic normalized CL2EX admission controller",
-      "acceptance": "Policy/accounting rejects do not create order context; accepted orders commit reserve plus AMU insert; duplicate/full insert failures release the exact reservation; rollback failure is fail-closed and never accepts."
-    },
-    {
-      "id": "I3-02",
-      "status": "COMPLETE",
-      "title": "Build frozen-HFT 256-bit futures risk order gate",
-      "acceptance": "Account/product mapping, Side translation and configurable policy are fail-closed; accepted result payload is bit-for-bit identical to the frozen HFT input payload."
-    },
-    {
-      "id": "I3-03",
-      "status": "COMPLETE",
-      "title": "Close CL2EX functional atomicity and fault regressions",
-      "acceptance": "Self-checking CI covers policy no-mutation, successful commit, duplicate/full rollback, margin reject, downstream result backpressure, mapping/policy failures, normalized context fields and injected rollback failure."
-    },
-    {
-      "id": "I3-04",
-      "status": "COMPLETE",
-      "title": "Measure atomic CL2EX gate with real pinned AMU on U50",
-      "acceptance": "Vivado 2022.1 OOC composition at 6.400 ns uses real block RAM, fully routes with zero routing errors, WNS >= 0 and TNS = 0, with utilization/critical-path/DRC/power evidence reviewed."
-    },
-    {
-      "id": "I4-01",
-      "status": "PLANNED",
-      "title": "Insert the closed risk gate into the frozen HFT R01 datapath",
-      "acceptance": "Risk-rejected orders cannot reach R01; accepted R01 payload bytes remain identical to the frozen-HFT baseline; committed execution feedback shares state/store ownership safely."
-    }
+    {"id":"I3-01","status":"COMPLETE","title":"Implement atomic normalized CL2EX admission controller","acceptance":"Policy/accounting rejects do not create order context; accepted orders commit reserve plus AMU insert; duplicate/full insert failures release the exact reservation; rollback failure is fail-closed and never accepts."},
+    {"id":"I3-02","status":"COMPLETE","title":"Build frozen-HFT 256-bit futures risk order gate","acceptance":"Account/product mapping, Side translation and configurable policy are fail-closed; accepted result payload is bit-for-bit identical to the frozen HFT input payload."},
+    {"id":"I3-03","status":"COMPLETE","title":"Close CL2EX functional atomicity and fault regressions","acceptance":"Self-checking CI covers policy no-mutation, successful commit, duplicate/full rollback, margin reject, downstream result backpressure, mapping/policy failures, normalized context fields and injected rollback failure."},
+    {"id":"I3-04","status":"COMPLETE","title":"Measure atomic CL2EX gate with real pinned AMU on U50","acceptance":"Vivado 2022.1 OOC composition at 6.400 ns uses real block RAM, fully routes with zero routing errors, WNS >= 0 and TNS = 0, with utilization/critical-path/DRC/power evidence reviewed."},
+    {"id":"I4-01","status":"PLANNED","title":"Insert the closed risk gate into the frozen HFT R01 datapath","acceptance":"Risk-rejected orders cannot reach R01; accepted R01 payload bytes remain identical to the frozen-HFT baseline; committed execution feedback shares state/store ownership safely."}
   ],
   "milestones": [
     {"date":"2026-09-17","evidence":"docs/source_baselines.md","id":"I0-FROZEN-SOURCES","summary":"HFT and RMIC upstreams pinned as read-only submodules at frozen pre-integration baselines."},
