@@ -22,13 +22,13 @@ module tb_hft_rmic_shared_core_v1;
     wire cfg_done,cfg_ok; wire [7:0] cfg_reason_code;
 
     reg order_valid=0; wire order_ready; reg [255:0] order_data=0;
-    wire accepted_order_valid; reg accepted_order_ready=1; wire [255:0] accepted_order_data; wire [31:0] accepted_order_id;
-    wire reject_valid; reg reject_ready=1; wire [31:0] reject_order_id; wire [1:0] reject_reason_source; wire [7:0] reject_reason_code;
+    wire accepted_order_valid; reg accepted_order_ready=0; wire [255:0] accepted_order_data; wire [31:0] accepted_order_id;
+    wire reject_valid; reg reject_ready=0; wire [31:0] reject_order_id; wire [1:0] reject_reason_source; wire [7:0] reject_reason_code;
 
     reg exec_commit_valid=0; wire exec_commit_ready; reg [7:0] exec_commit_msg_type=0,exec_commit_status_code=0,exec_commit_exec_type=0;
     reg [31:0] exec_commit_order_id=0; reg exec_commit_side=0; reg [7:0] exec_commit_position_effect=0;
     reg [31:0] exec_commit_order_price=0; reg [15:0] exec_commit_last_qty=0,exec_commit_leaves_qty=0,exec_commit_before_qty=0;
-    wire exec_result_valid; reg exec_result_ready=1; wire exec_result_ok; wire [1:0] exec_result_reason_source;
+    wire exec_result_valid; reg exec_result_ready=0; wire exec_result_ok; wire [1:0] exec_result_reason_source;
     wire [7:0] exec_result_reason_code; wire [31:0] exec_result_order_id; wire [15:0] exec_result_remaining_qty;
 
     hft_rmic_shared_core_v1 dut (.*);
@@ -75,22 +75,31 @@ module tb_hft_rmic_shared_core_v1;
         end
     endtask
 
+    task consume_order_result(input was_accept);
+        begin
+            @(negedge clk);
+            if(was_accept) accepted_order_ready=1'b1;
+            else reject_ready=1'b1;
+            @(posedge clk); @(negedge clk);
+            accepted_order_ready=1'b0; reject_ready=1'b0;
+        end
+    endtask
+
     task send_order(input [255:0] d, input exp_accept);
         integer guard;
         begin
             @(negedge clk); order_data=d; order_valid=1; guard=0;
-            while(!(order_valid&&order_ready)) begin @(posedge clk); guard=guard+1; if(guard>200) fail("order handshake timeout"); end
-            @(negedge clk); order_valid=0;
+            while(!order_ready) begin @(posedge clk); #1; guard=guard+1; if(guard>200) fail("order handshake timeout"); end
+            @(posedge clk); @(negedge clk); order_valid=0;
             guard=0;
-            while(!accepted_order_valid && !reject_valid) begin @(posedge clk); guard=guard+1; if(guard>300) fail("order result timeout"); end
-            #1;
+            while(!accepted_order_valid && !reject_valid) begin @(posedge clk); #1; guard=guard+1; if(guard>300) fail("order result timeout"); end
             if(exp_accept && !accepted_order_valid) begin
                 $display("I4_UNEXPECTED_REJECT order_id=%0d source=%0d code=%0d owner=%0d recovery=%0d", reject_order_id,reject_reason_source,reject_reason_code,transaction_owner,recovery_required);
                 fail("expected accept");
             end
             if(!exp_accept && !reject_valid) fail("expected reject");
             if(exp_accept && accepted_order_data!==d) fail("accepted payload changed");
-            @(posedge clk);
+            consume_order_result(exp_accept);
         end
     endtask
 
@@ -102,11 +111,11 @@ module tb_hft_rmic_shared_core_v1;
             exec_commit_order_id=oid; exec_commit_side=side; exec_commit_position_effect=pe;
             exec_commit_order_price=32'd100; exec_commit_last_qty=lastq; exec_commit_leaves_qty=leaves; exec_commit_before_qty=beforeq;
             exec_commit_valid=1; guard=0;
-            while(!(exec_commit_valid&&exec_commit_ready)) begin @(posedge clk); guard=guard+1; if(guard>200) fail("exec handshake timeout"); end
-            @(negedge clk); exec_commit_valid=0; guard=0;
-            while(!exec_result_valid) begin @(posedge clk); guard=guard+1; if(guard>400) fail("exec result timeout"); end
-            #1; if(!exec_result_ok) begin $display("I4_EXEC_FAIL source=%0d code=%0d owner=%0d",exec_result_reason_source,exec_result_reason_code,transaction_owner); fail("exec expected success"); end
-            @(posedge clk);
+            while(!exec_commit_ready) begin @(posedge clk); #1; guard=guard+1; if(guard>200) fail("exec handshake timeout"); end
+            @(posedge clk); @(negedge clk); exec_commit_valid=0; guard=0;
+            while(!exec_result_valid) begin @(posedge clk); #1; guard=guard+1; if(guard>400) fail("exec result timeout"); end
+            if(!exec_result_ok) begin $display("I4_EXEC_FAIL source=%0d code=%0d owner=%0d",exec_result_reason_source,exec_result_reason_code,transaction_owner); fail("exec expected success"); end
+            @(negedge clk); exec_result_ready=1; @(posedge clk); @(negedge clk); exec_result_ready=0;
         end
     endtask
 
@@ -139,15 +148,16 @@ module tb_hft_rmic_shared_core_v1;
         exec_commit_order_price=100; exec_commit_last_qty=0; exec_commit_leaves_qty=0; exec_commit_before_qty=1;
         exec_commit_valid=1;
         #1; if(order_ready) fail("CL must be backpressured while EX competes");
-        while(!exec_commit_ready) @(posedge clk);
+        while(!exec_commit_ready) begin @(posedge clk); #1; end
         @(posedge clk); @(negedge clk); exec_commit_valid=0;
-        while(!exec_result_valid) @(posedge clk);
+        while(!exec_result_valid) begin @(posedge clk); #1; end
         if(!exec_result_ok) fail("priority cancel failed");
-        while(!order_ready) @(posedge clk);
+        @(negedge clk); exec_result_ready=1; @(posedge clk); @(negedge clk); exec_result_ready=0;
+        while(!order_ready) begin @(posedge clk); #1; end
         @(posedge clk); @(negedge clk); order_valid=0;
-        while(!accepted_order_valid) @(posedge clk);
+        while(!accepted_order_valid) begin @(posedge clk); #1; end
         if(accepted_order_id!=103) fail("deferred CL order failed");
-        @(posedge clk);
+        consume_order_result(1'b1);
         $display("I4_EXEC_PRIORITY_AND_OWNER_LOCK_PASS");
 
         global_kill=1;
