@@ -20,3 +20,11 @@ iverilog -g2012 \
   "$ROOT/tb/tb_hft_rmic_policy_gate.sv"
 
 vvp "$BUILD/hft_rmic_policy_gate_tb.vvp"
+
+iverilog -g2012 \
+  -I "$ROOT/rtl/include" \
+  -o "$BUILD/hft_tmp_exec_position_tap_tb.vvp" \
+  "$ROOT/rtl/adapters/hft_tmp_exec_position_tap.sv" \
+  "$ROOT/tb/tb_hft_tmp_exec_position_tap.sv"
+
+vvp "$BUILD/hft_tmp_exec_position_tap_tb.vvp"
