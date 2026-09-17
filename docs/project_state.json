@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "record_revision": "2026-09-17-i2-governance-v1",
+  "observed_at_utc": "2026-09-17T10:28:00Z",
+  "goal": "Integrate the frozen dual-XGMII HFT baseline with the frozen RMIC M5.4 transactional core without modifying either upstream, while closing TAIFEX futures accounting, execution idempotency, safety-policy, timing, and end-to-end validation gaps.",
+  "handoff": "I1 field/policy adapters, futures accounting v1, and R02/R32 PositionEffect tap pass CI. Project governance is being formalized and I2 now owns multi-account/product futures state plus committed execution integration.",
+  "next_action": "Implement and verify the I2 multi-account/multi-product futures state manager, then bind only committed/de-duplicated R02/R32 execution events to state transitions.",
+  "active_plan": "docs/exec_plans/2026-09-17-i2-futures-state-manager.md",
+  "decision": "D-20260917-05",
+  "phase": {
+    "id": "I2",
+    "name": "Futures State Manager",
+    "status": "RUNNING",
+    "branch": "codex/i2-futures-state-manager",
+    "pr": null
+  },
+  "source_pins": {
+    "hft": "50217fad1fd580f8c451ba893f9035f4be1dc21a",
+    "rmic": "de6c300f4f18b18296f013287ab0eca70d3abb72"
+  },
+  "tasks": [
+    {
+      "id": "I2-01",
+      "status": "VERIFYING",
+      "title": "Adopt repository governance and phase workflow",
+      "acceptance": "Canonical project records, AGENTS policy, layout/results policies, sync/layout checks and CI governance checks are present and passing."
+    },
+    {
+      "id": "I2-02",
+      "status": "RUNNING",
+      "title": "Implement multi-account/multi-product futures state manager",
+      "acceptance": "Independent account/product state, OPEN/CLOSE long/short reservations and fills are self-checking with no cross-account contamination and fail-closed invalid access."
+    },
+    {
+      "id": "I2-03",
+      "status": "PLANNED",
+      "title": "Bind committed R02/R32 execution events",
+      "acceptance": "Only sequence-owner committed reports mutate state; duplicate/replay/gap cases cannot double-apply partial fills or releases."
+    },
+    {
+      "id": "I2-04",
+      "status": "PLANNED",
+      "title": "Measure state-manager OOC timing/resources",
+      "acceptance": "Vivado 2022.1 OOC at 6.400 ns reports WNS >= 0, TNS = 0 and reviewed utilization."
+    },
+    {
+      "id": "I3-01",
+      "status": "PLANNED",
+      "title": "Build CL2EX futures risk gate around frozen RMIC order lifecycle",
+      "acceptance": "Risk-rejected orders never enter R01; accepted payload remains byte-identical to frozen HFT behavior."
+    }
+  ],
+  "milestones": [
+    {
+      "date": "2026-09-17",
+      "id": "I0-FROZEN-SOURCES",
+      "evidence": "docs/source_baselines.md",
+      "summary": "HFT and RMIC upstreams pinned as read-only submodules at frozen pre-integration baselines."
+    },
+    {
+      "date": "2026-09-17",
+      "id": "I1-ADAPTER-POLICY",
+      "evidence": "docs/rmic_gap_analysis.md",
+      "summary": "Order field mapping and fail-closed policy shell established with integration-level reject namespace."
+    },
+    {
+      "date": "2026-09-17",
+      "id": "I1-FUTURES-ACCOUNTING",
+      "evidence": "docs/taifex_futures_accounting_contract_v1.md",
+      "summary": "Futures accounting v1 separates long/short and OPEN/CLOSE semantics using a host-configured margin-per-contract research model; not a TAIFEX SPAN claim."
+    },
+    {
+      "date": "2026-09-17",
+      "id": "I1-EXEC-POSITION-TAP",
+      "evidence": "rtl/adapters/hft_tmp_exec_position_tap.sv",
+      "summary": "Integration-owned R02/R32 fixed-offset PositionEffect tap fills the only execution field missing from the frozen HFT decoder; mutation authority remains with committed report ownership."
+    }
+  ]
+}

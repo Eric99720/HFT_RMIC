@@ -5,17 +5,35 @@ on:
   pull_request:
 
 jobs:
+  governance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Check synchronized project records
+        run: python -B scripts/sync_project_records.py --check
+
+      - name: Check repository layout
+        run: python -B scripts/check_repository_layout.py
+
+      - name: Check diff whitespace
+        run: git diff --check HEAD^ HEAD || git diff --check
+
   integration-regression:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: false
+          fetch-depth: 1
 
       - name: Install Icarus Verilog
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
-      - name: Run integration-owned adapter regression
+      - name: Run adapter policy and execution-tap regression
         run: bash scripts/run_adapter_iverilog.sh
 
       - name: Run futures accounting regression

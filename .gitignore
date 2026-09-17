@@ -1,0 +1,40 @@
+# Generated simulation / implementation output
+build/
+reports/
+sim/
+waves/
+*.jou
+*.log
+*.wdb
+*.vcd
+*.fst
+*.dcp
+*.bit
+*.ltx
+
+# Python / tooling
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local project metadata / scratch
+.local/
+.codebase-memory/
+*.bak
+*.tmp
+
+# Vivado project-mode/generated directories
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.srcs/
+.Xil/
