@@ -21,7 +21,7 @@ try {
     if (-not $SkipFunctional) {
         $bash = Get-Command bash -ErrorAction SilentlyContinue
         if ($null -eq $bash) {
-            Write-Warning 'bash not found; skipping Icarus regression. Use GitHub CI or Git Bash/WSL.'
+            Write-Warning 'bash not found; skipping Icarus regressions. Use GitHub CI or Git Bash/WSL.'
         } else {
             Write-Host '[HFT_RMIC] Running adapter/policy/execution-tap regression...'
             & $bash.Source scripts/run_adapter_iverilog.sh
@@ -30,6 +30,10 @@ try {
             Write-Host '[HFT_RMIC] Running futures accounting regression...'
             & $bash.Source scripts/run_accounting_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'accounting regression failed' }
+
+            Write-Host '[HFT_RMIC] Running multi-account futures state-manager regression...'
+            & $bash.Source scripts/run_state_manager_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'state-manager regression failed' }
         }
     }
 

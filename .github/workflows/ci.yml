@@ -38,3 +38,6 @@ jobs:
 
       - name: Run futures accounting regression
         run: bash scripts/run_accounting_iverilog.sh
+
+      - name: Run multi-account futures state-manager regression
+        run: bash scripts/run_state_manager_iverilog.sh
