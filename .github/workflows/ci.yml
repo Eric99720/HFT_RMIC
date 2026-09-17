@@ -33,7 +33,7 @@ jobs:
       - name: Install Icarus Verilog
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
-      - name: Run adapter policy and execution-tap regression
+      - name: Run adapter policy and execution-meta regression
         run: bash scripts/run_adapter_iverilog.sh
 
       - name: Run futures accounting regression
@@ -44,3 +44,6 @@ jobs:
 
       - name: Run futures order-context wrapper regression
         run: bash scripts/run_order_context_iverilog.sh
+
+      - name: Run committed execution reconciliation regression
+        run: bash scripts/run_execution_bridge_iverilog.sh

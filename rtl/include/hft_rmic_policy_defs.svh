@@ -19,9 +19,7 @@
 `define HFT_RMIC_ADAPTER_REASON_PRODUCT_AMBIGUOUS 8'd5
 `define HFT_RMIC_ADAPTER_REASON_QTY_WIDTH         8'd6
 
-// Policy reason codes. Only generic/configuration-independent categories are
-// frozen here. Exchange-specific codes are added only after the corresponding
-// policy is supported and verified against an authoritative specification.
+// Policy reason codes.
 `define HFT_RMIC_POLICY_REASON_PASS                     8'd0
 `define HFT_RMIC_POLICY_REASON_KILL_SWITCH              8'd1
 `define HFT_RMIC_POLICY_REASON_ORDER_TYPE_UNSUPPORTED   8'd2
@@ -45,10 +43,15 @@
 `define HFT_RMIC_POLICY_REASON_STATE_DISABLED            8'd17
 
 // System/integration reason codes.
-`define HFT_RMIC_SYSTEM_REASON_PASS                    8'd0
-`define HFT_RMIC_SYSTEM_REASON_NOT_READY               8'd1
-`define HFT_RMIC_SYSTEM_REASON_RECOVERY_REQUIRED       8'd2
-`define HFT_RMIC_SYSTEM_REASON_DOWNSTREAM_BACKPRESSURE 8'd3
-`define HFT_RMIC_SYSTEM_REASON_INTERNAL_OVERFLOW       8'd4
+`define HFT_RMIC_SYSTEM_REASON_PASS                       8'd0
+`define HFT_RMIC_SYSTEM_REASON_NOT_READY                  8'd1
+`define HFT_RMIC_SYSTEM_REASON_RECOVERY_REQUIRED          8'd2
+`define HFT_RMIC_SYSTEM_REASON_DOWNSTREAM_BACKPRESSURE    8'd3
+`define HFT_RMIC_SYSTEM_REASON_INTERNAL_OVERFLOW          8'd4
+`define HFT_RMIC_SYSTEM_REASON_ORDER_CONTEXT_NOT_FOUND    8'd5
+`define HFT_RMIC_SYSTEM_REASON_EXEC_METADATA_MISMATCH     8'd6
+`define HFT_RMIC_SYSTEM_REASON_EXEC_UNSUPPORTED           8'd7
+`define HFT_RMIC_SYSTEM_REASON_ORDER_STORE_FAILURE        8'd8
+`define HFT_RMIC_SYSTEM_REASON_EXECUTION_ALREADY_APPLIED  8'd9
 
 `endif
