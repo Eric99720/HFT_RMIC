@@ -11,6 +11,7 @@ iverilog -g2012 \
   -o "$BUILD/i2_ooc_compile.vvp" \
   "$ROOT/tb/stubs/amu_banked_double_hash_v2_stub.sv" \
   "$ROOT/rtl/integration/hft_rmic_futures_order_store_v1.sv" \
+  "$ROOT/rtl/accounting/hft_rmic_futures_transition_v1.sv" \
   "$ROOT/rtl/accounting/hft_rmic_futures_accounting_v1.sv" \
   "$ROOT/rtl/accounting/hft_rmic_state_ram.sv" \
   "$ROOT/rtl/accounting/hft_rmic_futures_state_manager_v1.sv" \
