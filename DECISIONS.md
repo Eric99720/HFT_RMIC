@@ -156,6 +156,20 @@ The original frozen-HFT 256-bit payload is carried alongside the transaction and
 
 ---
 
+## D-20260917-12 — Close I3 atomic CL2EX admission at the U50 OOC evidence layer
+
+**Status:** Adopted.
+
+**Decision:** Accept the I3 frozen-HFT mapping/policy + futures RESERVE/rollback + real pinned RMIC AMU INSERT composition as physically closed at 156.25 MHz. Preserve the I3 architecture for the next full-datapath insertion phase rather than reworking mapping or admission for additional timing margin.
+
+**Why:** The real U50 OOC implementation at integration commit `75e06d17396d9c9f234f175013d090f329f965df` closes with synth WNS `+3.023 ns`, placed WNS `+2.135 ns`, routed WNS `+1.583 ns`, TNS `0`, and zero routing errors. The routed worst path remains in the frozen AMU BRAM candidate/match/forwarding path; the new mapping, policy and rollback logic are not the timing bottleneck.
+
+**Evidence:** `docs/results/i3_atomic_cl2ex_ooc_postroute.md`; I3 atomic/order-gate/fault-injection regressions; packaged Vivado I3 OOC reports.
+
+**Claim limit:** This closes the atomic CL2EX gate as an OOC subsystem only. It does not establish end-to-end HFT R01 behavior, full-system timing, board packet latency, TAIFEX SPAN, or exchange conformance.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:
