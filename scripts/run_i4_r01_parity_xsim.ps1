@@ -58,27 +58,56 @@ try {
     $includeArgs = @()
     foreach ($d in $inc) { $includeArgs += @("-i", $d) }
 
+    $failureMessage = $null
     Push-Location $RunDir
     try {
-        Write-Host "[HFT_RMIC] Compiling I4 frozen R01 parity simulation..."
-        & $xvlog -sv -d AMU_BEHAVIORAL_RAM @includeArgs @sources 2>&1 | Tee-Object -FilePath "xvlog.log"
-        if ($LASTEXITCODE -ne 0) { throw "xvlog failed with exit code $LASTEXITCODE" }
+        try {
+            Write-Host "[HFT_RMIC] Compiling I4 frozen R01 parity simulation..."
+            & $xvlog -sv -d AMU_BEHAVIORAL_RAM @includeArgs @sources 2>&1 | Tee-Object -FilePath "xvlog.log"
+            if ($LASTEXITCODE -ne 0) { throw "xvlog failed with exit code $LASTEXITCODE" }
 
-        & $xelab tb_hft_rmic_i4_r01_byte_parity -s hft_rmic_i4_r01_parity_sim --debug typical 2>&1 | Tee-Object -FilePath "xelab.log"
-        if ($LASTEXITCODE -ne 0) { throw "xelab failed with exit code $LASTEXITCODE" }
+            & $xelab tb_hft_rmic_i4_r01_byte_parity -s hft_rmic_i4_r01_parity_sim --debug typical 2>&1 | Tee-Object -FilePath "xelab.log"
+            if ($LASTEXITCODE -ne 0) { throw "xelab failed with exit code $LASTEXITCODE" }
 
-        & $xsim hft_rmic_i4_r01_parity_sim -runall 2>&1 | Tee-Object -FilePath "xsim.log"
-        if ($LASTEXITCODE -ne 0) { throw "xsim failed with exit code $LASTEXITCODE" }
+            & $xsim hft_rmic_i4_r01_parity_sim -runall 2>&1 | Tee-Object -FilePath "xsim.log"
+            if ($LASTEXITCODE -ne 0) { throw "xsim failed with exit code $LASTEXITCODE" }
 
-        $simLog = Get-Content "xsim.log" -Raw
-        if ($simLog -notmatch "HFT_RMIC_I4_R01_BYTE_PARITY_TB_PASS") {
-            throw "I4 R01 parity PASS marker missing"
+            $simLog = Get-Content "xsim.log" -Raw
+            if ($simLog -notmatch "I4_R01_BYTE_PARITY_PASS label=legacy bytes=80") {
+                throw "legacy frozen-R01 80-byte parity marker missing"
+            }
+            if ($simLog -notmatch "I4_R01_BYTE_PARITY_PASS label=prebuild bytes=80") {
+                throw "prebuild frozen-R01 80-byte parity marker missing"
+            }
+            if ($simLog -notmatch "I4_R01_REJECT_NO_PACKET_PASS") {
+                throw "risk-reject no-packet marker missing"
+            }
+            if ($simLog -notmatch "HFT_RMIC_I4_R01_BYTE_PARITY_TB_PASS") {
+                throw "I4 R01 parity final PASS marker missing"
+            }
+            Write-Host "[HFT_RMIC] HFT_RMIC_I4_R01_BYTE_PARITY_TB_PASS"
         }
-        Write-Host "[HFT_RMIC] HFT_RMIC_I4_R01_BYTE_PARITY_TB_PASS"
+        catch {
+            $failureMessage = $_.Exception.Message
+        }
     }
     finally {
         Pop-Location
     }
+
+    try {
+        & (Join-Path $PSScriptRoot "package_results.ps1") -RunDir $RunDir -Kind "i4_r01_parity_xsim"
+    }
+    catch {
+        Write-Warning "Could not package I4 R01 parity results: $($_.Exception.Message)"
+    }
+
+    if ($failureMessage) {
+        throw "I4 R01 parity simulation failed: $failureMessage. Upload the newest build\packages\HFT_RMIC_i4_r01_parity_xsim_*.zip for diagnosis."
+    }
+
+    Write-Host "[HFT_RMIC] I4 frozen R01 byte parity completed successfully."
+    Write-Host "[HFT_RMIC] Upload the newest build\packages\HFT_RMIC_i4_r01_parity_xsim_*.zip"
 }
 finally {
     Pop-Location
