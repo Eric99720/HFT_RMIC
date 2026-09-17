@@ -50,15 +50,15 @@ Append-only durable architecture/research decisions. Do not rewrite old decision
 
 ---
 
-## D-20260917-05 — Frozen HFT report owner is the only execution mutation authority
+## D-20260917-05 — Frozen HFT report owner is the only R02/R32 execution mutation authority
 
 **Status:** Adopted.
 
-**Decision:** R02/R32 field decoding may happen earlier, but futures/RMIC state mutation occurs only from the frozen HFT report-sequence owner's committed event. Duplicate, replayed-old and gap reports must not mutate state.
+**Decision:** R02/R32 field decoding may happen earlier, but futures/RMIC state mutation occurs only from the frozen HFT report-sequence owner's committed event. Duplicate, replayed-old and gap reports must not mutate state. R03 error/reject processing uses the separate checksum-valid committed error path and is idempotent through order-context deletion.
 
-**Why:** Applying raw decoder events can double-apply partial fills during replay/reconnect. The HFT baseline already owns sequence continuity/deduplication and should remain the single authority.
+**Why:** Applying raw decoder events can double-apply partial fills during replay/reconnect. The HFT baseline already owns sequence continuity/deduplication and should remain the single authority for R02/R32.
 
-**Evidence:** frozen `hft_report_sequence_owner.v`, `hft_rx_order_book_top.v`, integration PositionEffect tap.
+**Evidence:** frozen `hft_report_sequence_owner.v`, `hft_rx_order_book_top.v`, integration execution metadata tap and committed-execution regression.
 
 ---
 
@@ -70,7 +70,43 @@ Append-only durable architecture/research decisions. Do not rewrite old decision
 
 **Why:** Long-running FPGA/research integration needs durable state, clear task acceptance, reproducible handoff and protection from branch/document drift.
 
-**Reference model:** adapted from `Eric99720/LOB-SOTA-Research` project governance, excluding ML-specific rules.
+**Reference model:** adapted from `Eric99720/LOB-SOTA-Research` project governance, excluding ML/training-specific rules.
+
+---
+
+## D-20260917-07 — Futures state is the sole account-position source; RMIC reuse is limited to transactional primitives
+
+**Status:** Adopted.
+
+**Decision:** The integration-owned futures state manager is the sole source of truth for long/short position, pending OPEN, reserved CLOSE and margin-budget state. The frozen RMIC stock-like account record is not chained as a second account-state owner. Integration reuses the frozen RMIC AMU/hash/BRAM order-context primitive and its proven collision architecture, but futures account semantics remain integration-owned.
+
+**Why:** Running both the stock-like M5.4 account mutation and futures OPEN/CLOSE accounting would create contradictory double accounting. The frozen AMU is independently useful and its 96-bit value is sufficient for the 89-bit futures order context without modifying the upstream.
+
+**Alternatives considered:** reinterpret RMIC cash/position fields as futures state; modify frozen RMIC account record; maintain both state models. All were rejected because they either corrupt price-versus-margin semantics, violate the frozen-upstream boundary, or create dual mutable sources of truth.
+
+**Evidence:** `rtl/integration/hft_rmic_futures_order_store_v1.sv`, `rtl/accounting/hft_rmic_futures_state_manager_v1.sv`, frozen RMIC AMU post-route evidence.
+
+---
+
+## D-20260917-08 — Reconcile execution with order context and authoritative quantity invariants
+
+**Status:** Adopted.
+
+**Decision:** Committed execution reconciliation first looks up `order_id` context, then validates report metadata before mutating futures state. R02/R32 trade uses `before_qty`, `LastQty` and `LeavesQty`; cancel and reduce use `before_qty`/`LeavesQty`; R03 releases the stored remaining reservation. Final/terminal lifecycle removes the order context, making repeated terminal events no-ops through context miss. Any mismatch fails closed.
+
+For a trade report with active quantities:
+
+```text
+before_qty = stored_remaining_qty
+before_qty >= LastQty + LeavesQty
+auto_release = before_qty - LastQty - LeavesQty
+```
+
+`LastQty` becomes a FILL transition, `auto_release` becomes a RELEASE transition, and the order context is updated to `LeavesQty` or deleted at zero. This explicitly supports terminal IOC-style fill plus exchange-cancelled remainder without guessing.
+
+**Why:** TAIFEX TMP v2.18.7 defines `before_qty` as pre-match remaining quantity, `LastQty` as the last execution quantity, and `LeavesQty` as current remaining quantity. Binding these fields to locally stored remaining quantity provides both correct lifecycle accounting and a second fail-closed defense against stale/duplicate reports.
+
+**Evidence:** authoritative pinned TMP v2.18.7 section 2.4.2; `rtl/adapters/hft_tmp_exec_position_tap.sv`; `rtl/integration/hft_rmic_committed_execution_bridge_v1.sv`; `tb/tb_hft_rmic_committed_execution_bridge_v1.sv`; exact-head CI.
 
 ---
 

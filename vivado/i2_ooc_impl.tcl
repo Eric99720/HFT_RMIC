@@ -32,7 +32,16 @@ foreach f $sources {
 
 read_verilog -sv -include_dirs $incdirs $sources
 auto_detect_xpm
-puts "HFT_RMIC_XPM_LIBRARIES=[get_property XPM_LIBRARIES [current_project]]"
+# In Vivado non-project mode auto_detect_xpm is the required operation. Some
+# releases expose XPM_LIBRARIES through current_project and some do not; report
+# the property when available without making that diagnostic a build blocker.
+set xpm_libs "auto_detect_xpm completed"
+if {![catch {set detected_xpm [get_property XPM_LIBRARIES [current_project]]}]} {
+    if {$detected_xpm ne ""} {
+        set xpm_libs $detected_xpm
+    }
+}
+puts "HFT_RMIC_XPM_LIBRARIES=$xpm_libs"
 
 synth_design -top $top -part $part -mode out_of_context
 create_clock -name hft_rmic_clk -period 6.400 [get_ports clk]
