@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 mkdir -p build/iverilog
-iverilog -g2012 -I rtl/include \
+iverilog -g2012 -DHFT_RMIC_BEHAVIORAL_RAM -I rtl/include \
   -s hft_rmic_r01_path_v1 \
   -o build/iverilog/i4_r01_path_compile.vvp \
   tb/stubs/amu_banked_double_hash_v2_stub.sv \
