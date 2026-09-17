@@ -71,3 +71,6 @@ jobs:
 
       - name: Compile I4 shared risk-to-R01 composition harness
         run: bash scripts/run_i4_r01_ooc_compile_iverilog.sh
+
+      - name: Compile I4 frozen-encoder parity testbench
+        run: bash scripts/run_i4_r01_parity_compile_iverilog.sh
