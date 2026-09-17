@@ -6,9 +6,13 @@ vivado_dir = root / "vivado"
 
 errors = []
 for p in sorted(vivado_dir.glob("*.tcl")):
-    text = p.read_text(encoding="utf-8")
-    if "read_verilog -sv -include_dirs" in text or "read_verilog -include_dirs" in text:
-        errors.append(f"{p.name}: unsupported read_verilog -include_dirs found")
+    lines = p.read_text(encoding="utf-8").splitlines()
+    for lineno, raw in enumerate(lines, start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "read_verilog" in line and "-include_dirs" in line:
+            errors.append(f"{p.name}:{lineno}: unsupported read_verilog -include_dirs found")
 
 required_in_memory = [
     vivado_dir / "i2_ooc_impl.tcl",
