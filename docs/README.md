@@ -17,6 +17,7 @@ Start here for durable project context. Current execution state is in [`../CURRE
 - [`integration_architecture.md`](integration_architecture.md) — intended HFT → policy/accounting → RMIC → TMP composition.
 - [`rmic_gap_analysis.md`](rmic_gap_analysis.md) — 2023 bidirectional-risk thesis vs frozen RMIC gap analysis and prioritized P0/P1/P2 controls.
 - [`preintegration_risk_decisions.md`](preintegration_risk_decisions.md) — pre-integration safety/accounting decisions.
+- [`research_notes/hft_network_candidate_audit.md`](research_notes/hft_network_candidate_audit.md) — audit and migration disposition for the supplied junior U50 network/PHY candidate bundle; no upstream pin change is implied.
 
 ## TAIFEX / risk contracts
 
