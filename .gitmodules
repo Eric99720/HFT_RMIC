@@ -1,0 +1,6 @@
+[submodule "deps/hft-full-system-fpga"]
+	path = deps/hft-full-system-fpga
+	url = https://github.com/Eric99720/hft-full-system-fpga.git
+[submodule "deps/RMIC"]
+	path = deps/RMIC
+	url = https://github.com/Eric99720/RMIC.git
