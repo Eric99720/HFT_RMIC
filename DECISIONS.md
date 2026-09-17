@@ -124,6 +124,20 @@ auto_release = before_qty - LastQty - LeavesQty
 
 ---
 
+## D-20260917-10 — Pipeline futures margin/state evaluation to meet the 6.400 ns hardware contract
+
+**Status:** Adopted.
+
+**Decision:** Keep the 156.25 MHz / 6.400 ns target and pipeline the integration-owned futures state path across BRAM capture, quantity/OPEN-CLOSE transition, registered exposure, margin multiplication, registered margin result, and decision/writeback. Do not hide the original failure with a multicycle exception or lower the clock target.
+
+**Why:** The first real-AMU I2 route completed physically but failed setup at WNS `-6.866 ns` / TNS `-893.979 ns`. Its worst state path combined BRAM read, wide quantity arithmetic, margin DSP multiplication/comparison, next-state selection, another margin calculation, and BRAM writeback in one cycle. The pipelined implementation moved synthesis WNS from `-6.232 ns` to `+2.318 ns` and routed WNS to `+1.078 ns` with TNS `0`, proving structural timing closure rather than route luck.
+
+**Evidence:** `docs/results/i2_futures_state_ooc_postroute.md`; `rtl/accounting/hft_rmic_futures_transition_v1.sv`; `rtl/accounting/hft_rmic_futures_state_manager_v1.sv`; packaged Vivado I2 OOC reports at integration commit `61194b7b57aa87ddf99dba6ed19e257109f87d6f`.
+
+**Claim limit:** This decision closes the I2 OOC composition at 156.25 MHz. It does not establish timing or latency for the final full HFT+RMIC top.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:
