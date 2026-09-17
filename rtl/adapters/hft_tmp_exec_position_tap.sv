@@ -41,6 +41,11 @@ module hft_tmp_exec_position_tap #(
     wire [7:0] d6 = tap_data[15:8];
     wire [7:0] d7 = tap_data[7:0];
 
+    // Keep is deliberately unused for these two fields: both offsets are in
+    // interior, full-width beats for valid R02/R32 packets.  Avoiding a keep
+    // lane assumption makes this tap independent of wrapper-specific bit order.
+    wire _unused_keep = &{1'b0, tap_keep};
+
     reg active;
     reg [7:0] beat_index;
     reg [7:0] msg_type;
@@ -77,21 +82,20 @@ module hft_tmp_exec_position_tap #(
                     msg_type <= d4;
 
                 // R02 PositionEffect: byte 75 = beat 9 / d3.
-                if ((msg_type == MSG_R02) && (beat_index == 8'd9) && tap_keep[4]) begin
+                if ((msg_type == MSG_R02) && (beat_index == 8'd9)) begin
                     position_effect <= d3;
                     position_effect_seen <= 1'b1;
                 end
 
                 // R32 PositionEffect: byte 95 = beat 11 / d7.
-                if ((msg_type == MSG_R32) && (beat_index == 8'd11) && tap_keep[0]) begin
+                if ((msg_type == MSG_R32) && (beat_index == 8'd11)) begin
                     position_effect <= d7;
                     position_effect_seen <= 1'b1;
                 end
 
                 if (tap_last) begin
                     // The report packets are longer than the PositionEffect
-                    // offsets, so the nonblocking-captured value is already
-                    // available from an earlier beat here.
+                    // offsets, so the captured value is already stable here.
                     if (((msg_type == MSG_R02) || (msg_type == MSG_R32)) &&
                         position_effect_seen) begin
                         metadata_valid <= 1'b1;
