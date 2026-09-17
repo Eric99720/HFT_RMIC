@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  adapter-regression:
+  integration-regression:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -17,3 +17,6 @@ jobs:
 
       - name: Run integration-owned adapter regression
         run: bash scripts/run_adapter_iverilog.sh
+
+      - name: Run futures accounting regression
+        run: bash scripts/run_accounting_iverilog.sh
