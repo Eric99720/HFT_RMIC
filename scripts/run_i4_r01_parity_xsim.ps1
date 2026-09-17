@@ -63,16 +63,24 @@ try {
     try {
         try {
             Write-Host "[HFT_RMIC] Compiling I4 frozen R01 parity simulation..."
-            & $xvlog -sv -d AMU_BEHAVIORAL_RAM @includeArgs @sources 2>&1 | Tee-Object -FilePath "xvlog.log"
+            # xvlog/xelab/xsim create their own native *.log files in the run
+            # directory.  Never Tee stdout back into those same filenames on
+            # Windows: the simulator opens them itself and the second writer can
+            # fail with a file-lock collision.  Capture console output under
+            # distinct names while preserving the native logs for diagnosis.
+            & $xvlog -sv -d AMU_BEHAVIORAL_RAM @includeArgs @sources 2>&1 | Tee-Object -FilePath "xvlog_console.log"
             if ($LASTEXITCODE -ne 0) { throw "xvlog failed with exit code $LASTEXITCODE" }
 
-            & $xelab tb_hft_rmic_i4_r01_byte_parity -s hft_rmic_i4_r01_parity_sim --debug typical 2>&1 | Tee-Object -FilePath "xelab.log"
+            & $xelab tb_hft_rmic_i4_r01_byte_parity -s hft_rmic_i4_r01_parity_sim --debug typical 2>&1 | Tee-Object -FilePath "xelab_console.log"
             if ($LASTEXITCODE -ne 0) { throw "xelab failed with exit code $LASTEXITCODE" }
 
-            & $xsim hft_rmic_i4_r01_parity_sim -runall 2>&1 | Tee-Object -FilePath "xsim.log"
+            & $xsim hft_rmic_i4_r01_parity_sim -runall 2>&1 | Tee-Object -FilePath "xsim_console.log"
             if ($LASTEXITCODE -ne 0) { throw "xsim failed with exit code $LASTEXITCODE" }
 
-            $simLog = Get-Content "xsim.log" -Raw
+            $nativeXsimLog = Join-Path $RunDir "xsim.log"
+            $consoleXsimLog = Join-Path $RunDir "xsim_console.log"
+            $logToRead = if (Test-Path $nativeXsimLog) { $nativeXsimLog } else { $consoleXsimLog }
+            $simLog = Get-Content $logToRead -Raw
             if ($simLog -notmatch "I4_R01_BYTE_PARITY_PASS label=legacy bytes=80") {
                 throw "legacy frozen-R01 80-byte parity marker missing"
             }
