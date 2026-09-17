@@ -18,10 +18,14 @@ try {
     python -B scripts/check_repository_layout.py
     if ($LASTEXITCODE -ne 0) { throw 'repository layout check failed' }
 
+    Write-Host '[HFT_RMIC] Verifying Vivado 2022.1 Tcl compatibility...'
+    python -B scripts/check_vivado_2022_tcl.py
+    if ($LASTEXITCODE -ne 0) { throw 'Vivado 2022.1 Tcl compatibility check failed' }
+
     if (-not $SkipFunctional) {
         $bash = Get-Command bash -ErrorAction SilentlyContinue
         if ($null -eq $bash) {
-            Write-Warning 'bash not found; skipping Icarus regressions. Use GitHub CI or Git Bash/WSL.'
+            Write-Warning 'bash not found; skipping local Icarus regressions. Exact-head GitHub CI remains the required functional gate on hosts without Git Bash/WSL.'
         } else {
             Write-Host '[HFT_RMIC] Running adapter/policy/execution-meta regression...'
             & $bash.Source scripts/run_adapter_iverilog.sh
