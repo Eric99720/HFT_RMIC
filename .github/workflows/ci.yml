@@ -41,3 +41,6 @@ jobs:
 
       - name: Run multi-account futures state-manager regression
         run: bash scripts/run_state_manager_iverilog.sh
+
+      - name: Run futures order-context wrapper regression
+        run: bash scripts/run_order_context_iverilog.sh

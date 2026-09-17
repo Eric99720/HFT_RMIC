@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -41,7 +40,10 @@ def main() -> int:
 
     hft_defs = ROOT / "deps" / "hft-full-system-fpga" / "rtl" / "common" / "include" / "round_chip_defs.vh"
     hft_packer = ROOT / "deps" / "hft-full-system-fpga" / "rtl" / "bridge" / "hft_order_data_packer.v"
+    hft_seq_owner = ROOT / "deps" / "hft-full-system-fpga" / "rtl" / "order_book" / "hft_report_sequence_owner.v"
     rmic_defs = ROOT / "deps" / "RMIC" / "rtl" / "rmic_defs.svh"
+    rmic_amu = ROOT / "deps" / "RMIC" / "rtl" / "amu_banked_double_hash_v2.sv"
+    rmic_amu_ram = ROOT / "deps" / "RMIC" / "rtl" / "amu_bank_ram.sv"
 
     require_text(
         hft_defs,
@@ -68,6 +70,18 @@ def main() -> int:
         ],
     )
     require_text(
+        hft_seq_owner,
+        [
+            "module hft_report_sequence_owner",
+            "candidate_valid",
+            "commit_valid",
+            "duplicate_drop",
+            "last_committed_seq",
+            "candidate_seq == expected_seq",
+            "candidate_seq <= last_committed_seq",
+        ],
+    )
+    require_text(
         rmic_defs,
         [
             "`define RMIC_SIDE_BUY   1'b0",
@@ -75,6 +89,29 @@ def main() -> int:
             "`define RMIC_EXEC_FILL    2'd0",
             "`define RMIC_EXEC_CANCEL  2'd1",
             "`define RMIC_EXEC_REJECT  2'd2",
+        ],
+    )
+    require_text(
+        rmic_amu,
+        [
+            "module amu_banked_double_hash_v2",
+            "parameter integer VALUE_W = 128",
+            "input  wire [1:0]               req_op",
+            "input  wire [KEY_W-1:0]         req_key",
+            "input  wire [VALUE_W-1:0]       req_value",
+            "output reg  [VALUE_W-1:0]       rsp_value",
+            "localparam [1:0] OP_LOOKUP = 2'd0",
+            "localparam [1:0] OP_INSERT = 2'd1",
+            "localparam [1:0] OP_DELETE = 2'd2",
+            "localparam [1:0] OP_UPDATE = 2'd3",
+        ],
+    )
+    require_text(
+        rmic_amu_ram,
+        [
+            "module amu_bank_ram",
+            'MEMORY_PRIMITIVE("block")',
+            "`ifdef AMU_BEHAVIORAL_RAM",
         ],
     )
 
@@ -87,6 +124,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception as exc:  # noqa: BLE001 - CLI validation should fail closed
+    except Exception as exc:  # CLI validation should fail closed
         print(f"HFT_RMIC_DEPENDENCY_CONTRACT_FAIL: {exc}", file=sys.stderr)
         raise SystemExit(1)
