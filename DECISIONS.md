@@ -138,6 +138,24 @@ auto_release = before_qty - LastQty - LeavesQty
 
 ---
 
+## D-20260917-11 — CL2EX admission is an atomic reserve-plus-context transaction
+
+**Status:** Adopted.
+
+**Decision:** A policy-approved HFT order is not accepted until both the futures-state RESERVE and the outstanding-order AMU INSERT succeed. The ordering is RESERVE first, then INSERT. If INSERT fails because the key exists, the table is full, or another store error occurs, the controller must issue an exact RELEASE rollback before returning the reject. If rollback itself fails, the order remains rejected and the result is escalated to `ADMISSION_ROLLBACK_FAILED`; explicit recovery is required.
+
+The original frozen-HFT 256-bit payload is carried alongside the transaction and is never rewritten. It may be released toward the future R01 path only after the atomic transaction commits.
+
+**Why:** Reserving without an order context creates unowned exposure; inserting context without a reservation creates an exchange-visible order that is absent from risk state. Either partial state is unacceptable. Reserve-first allows the existing futures state engine to make the authoritative risk decision, while deterministic rollback restores atomicity if the AMU cannot take ownership.
+
+**Alternatives considered:** INSERT first then RESERVE; parallel optimistic state/store mutation; treating an INSERT failure as a reject without rollback. INSERT-first requires deleting a context after an accounting reject and briefly creates an unreserved outstanding order; parallel mutation requires a more complex two-resource commit protocol; no-rollback leaks margin/position reservation. All are rejected for I3.
+
+**Evidence:** `rtl/integration/hft_rmic_cl2ex_admission_v1.sv`, `tb/tb_hft_rmic_cl2ex_admission_v1.sv`, `tb/tb_hft_rmic_cl2ex_admission_fault_v1.sv`, `rtl/integration/hft_rmic_order_gate_v1.sv`, exact-head CI.
+
+**Claim limit:** I3 remains serialized/correctness-first at the futures-state transaction level. This decision defines admission atomicity; it does not claim CL2EX II=1 for the integrated futures gate or final full-HFT latency.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:
