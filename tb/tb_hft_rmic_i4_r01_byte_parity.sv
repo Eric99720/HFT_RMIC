@@ -4,21 +4,18 @@
 `include "taifex_tmp_v2187_defs.svh"
 
 // Local Vivado/XSim sign-off for the I4 R01 insertion boundary.
-//
 // One frozen financial_protocol_encoder is driven directly with the original
-// 256-bit HFT order_data (baseline).  A second identical frozen encoder is
+// 256-bit HFT order_data (baseline). A second identical frozen encoder is
 // driven only after the same payload passes the integration-owned futures risk
-// gate.  Packet latency is intentionally allowed to differ; the complete 80
-// byte R01 payload must be bit-for-bit identical.
+// gate. Packet latency may differ; the complete 80-byte R01 payload must match.
 module tb_hft_rmic_i4_r01_byte_parity;
     localparam integer ORDER_WIDTH = 256;
     localparam integer DATA_WIDTH = 64;
 
     reg clk = 1'b0;
-    always #3.2 clk = ~clk; // 156.25 MHz
+    always #3.2 clk = ~clk;
     reg rst_n = 1'b0;
 
-    // Common frozen R01 metadata.
     reg [31:0] msg_epoch_s = 32'h12345678;
     reg [15:0] msg_ms = 16'h0203;
     reg [15:0] fcm_id = 16'h1111;
@@ -33,7 +30,6 @@ module tb_hft_rmic_i4_r01_byte_parity;
     reg network_ready = 1'b1;
     reg tx_ready = 1'b1;
 
-    // Baseline frozen encoder input/output.
     reg baseline_order_valid = 1'b0;
     wire baseline_order_ready;
     reg [ORDER_WIDTH-1:0] baseline_order_data = 0;
@@ -44,7 +40,6 @@ module tb_hft_rmic_i4_r01_byte_parity;
     wire [15:0] baseline_tx_payload_len;
     wire baseline_tx_complete;
 
-    // Integrated legacy/prebuild order producers.
     reg legacy_order_valid = 1'b0;
     wire legacy_order_ready;
     reg [ORDER_WIDTH-1:0] legacy_order_data = 0;
@@ -293,7 +288,15 @@ module tb_hft_rmic_i4_r01_byte_parity;
         begin
             g=0;
             while((baseline_len < 80) || (integrated_len < 80)) begin
-                @(posedge clk); #1; g=g+1; if(g>1600) fail("R01 parity packet timeout");
+                @(posedge clk); #1; g=g+1;
+                if (risk_reject_valid) begin
+                    $display("I4_R01_PARITY_RISK_REJECT label=%0s order_id=%0d source=%0d code=%0d owner=%0d recovery=%0d", label_name, risk_reject_order_id, risk_reject_reason_source, risk_reject_reason_code, transaction_owner, recovery_required);
+                    fail("integrated order rejected before R01 parity");
+                end
+                if(g>1600) begin
+                    $display("I4_R01_PARITY_TIMEOUT label=%0s baseline_len=%0d integrated_len=%0d accepted=%0d sent=%0d owner=%0d recovery=%0d", label_name, baseline_len, integrated_len, encoder_accepted_order_count, encoder_sent_r01_count, transaction_owner, recovery_required);
+                    fail("R01 parity packet timeout");
+                end
             end
             if (baseline_tx_payload_len !== 16'd80 && baseline_tx_payload_len !== 16'd0) fail("baseline payload length mismatch");
             if (integrated_tx_payload_len !== 16'd80 && integrated_tx_payload_len !== 16'd0) fail("integrated payload length mismatch");
@@ -348,7 +351,6 @@ module tb_hft_rmic_i4_r01_byte_parity;
         send_integrated_prebuild(order_b);
         wait_and_compare("prebuild");
 
-        // Fail-closed: policy rejection produces no third integrated R01.
         order_c = mk_order(32'd302,32'd103000,16'd1);
         integrated_len = 0;
         global_kill = 1'b1;
@@ -364,5 +366,11 @@ module tb_hft_rmic_i4_r01_byte_parity;
         if(recovery_required) fail("unexpected recovery_required");
         $display("HFT_RMIC_I4_R01_BYTE_PARITY_TB_PASS");
         $finish;
+    end
+
+    initial begin
+        #20000000;
+        $display("I4_R01_PARITY_GLOBAL_TIMEOUT baseline_len=%0d integrated_len=%0d reject_valid=%0d reject_source=%0d reject_code=%0d owner=%0d recovery=%0d", baseline_len, integrated_len, risk_reject_valid, risk_reject_reason_source, risk_reject_reason_code, transaction_owner, recovery_required);
+        fail("global parity timeout");
     end
 endmodule
