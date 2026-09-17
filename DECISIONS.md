@@ -170,6 +170,24 @@ The original frozen-HFT 256-bit payload is carried alongside the transaction and
 
 ---
 
+## D-20260918-13 — Gate both frozen R01 producers and serialize CL/EX ownership of shared risk state
+
+**Status:** Adopted for I4 correctness closure.
+
+**Decision:** The ordinary frozen-HFT bridge order stream and the R01-prebuild stream must merge before risk; neither producer may feed the frozen R01 encoder without first completing the same I3 atomic admission transaction. Preserve the frozen source preference by giving prebuild priority at this merge.
+
+CL admission and committed execution reconciliation share exactly one futures-state manager and one AMU order-context store. Arbitration is at the transaction boundary, not per memory operation: when no owner is active, a committed execution and new order arriving together select committed execution; the selected owner retains both state/store resources until its result is consumed. The non-owner remains backpressured throughout that transaction.
+
+**Why:** The pinned XGMII-oriented HFT baseline enables `ENABLE_R01_PREBUILD=1`; intercepting only `bridge_strategy_order_data` would leave a real risk-control bypass. Separately, interleaving CL and EX operations on the same state/store can create lookup/update races and contradictory account mutations. Transaction-level ownership reuses the already-verified exclusive-client FSMs without modifying frozen upstreams and gives deterministic correctness before throughput optimization.
+
+**Alternatives considered:** gate only the ordinary bridge path; gate after R01 formatting; per-request arbitration between CL and EX; duplicate futures state/store instances; optimistic parallel CL/EX mutation. These are rejected because they respectively allow prebuild bypass, move risk too late, permit multi-step transaction interleaving, create multiple mutable sources of truth, or require a more complex recovery protocol.
+
+**Evidence:** `rtl/integration/hft_rmic_dual_order_source_v1.sv`; `rtl/integration/hft_rmic_shared_core_v1.sv`; `rtl/integration/hft_rmic_r01_path_v1.sv`; `tb/tb_hft_rmic_shared_core_v1.sv`; `tb/tb_hft_rmic_r01_path_stub_v1.sv`; PR #3 CI.
+
+**Claim limit:** The I4 owner lock is correctness-first serialization and does not claim CL2EX/EX2CL concurrency or II=1. Exact frozen R01 byte parity and the real-AMU U50 risk-to-R01 physical composition remain separate local gates until their packaged evidence is reviewed.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:
