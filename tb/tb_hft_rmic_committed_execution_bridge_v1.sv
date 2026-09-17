@@ -12,7 +12,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
     reg clk=0; always #5 clk=~clk;
     reg rst_n=0;
 
-    // Bridge event/result.
     reg commit_valid=0;
     wire commit_ready;
     reg [7:0] commit_msg_type=0, commit_status_code=0, commit_exec_type=0;
@@ -29,7 +28,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
     wire [31:0] result_order_id;
     wire [QTY_W-1:0] result_remaining_qty;
 
-    // Bridge -> store.
     wire br_store_req_valid, br_store_req_ready;
     wire [1:0] br_store_req_op;
     wire [31:0] br_store_req_order_id;
@@ -46,7 +44,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
     wire [31:0] br_store_rsp_limit_price;
     wire [QTY_W-1:0] br_store_rsp_remaining_qty;
 
-    // TB preload/query client for store.
     reg tb_store_owner=1;
     reg tb_store_req_valid=0;
     wire tb_store_req_ready;
@@ -112,7 +109,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
         .rsp_bank(os_rsp_bank),.rsp_in_stash(os_rsp_in_stash),.init_done(os_init_done)
     );
 
-    // State manager configuration.
     reg cfg_valid=0; wire cfg_ready;
     reg [7:0] cfg_account_id=0, cfg_product_id=0;
     reg cfg_enabled=0;
@@ -122,7 +118,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
         cfg_reserved_close_long=0,cfg_reserved_close_short=0;
     wire cfg_done,cfg_ok; wire [7:0] cfg_reason_code;
 
-    // Bridge -> accounting request.
     wire br_acct_req_valid, br_acct_req_ready;
     wire [7:0] br_acct_req_account_id, br_acct_req_product_id;
     wire [2:0] br_acct_req_event_kind;
@@ -133,7 +128,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
     wire [1:0] br_acct_rsp_reason_source;
     wire [7:0] br_acct_rsp_reason_code;
 
-    // TB query client for state manager.
     reg tb_acct_owner=0;
     reg tb_acct_req_valid=0; wire tb_acct_req_ready;
     reg [7:0] tb_acct_req_account_id=0,tb_acct_req_product_id=0;
@@ -267,7 +261,11 @@ module tb_hft_rmic_committed_execution_bridge_v1;
 
     task insert_ctx;
         input [31:0] oid; input side; input [7:0] pe; input [QTY_W-1:0] rem;
-        begin store_issue(OP_INSERT,oid,side,pe,rem); store_expect(1,1,rem); end
+        begin
+            store_issue(OP_INSERT,oid,side,pe,rem);
+            // Real frozen AMU new-key INSERT returns ok=1/found=0/status=OK.
+            store_expect(1,0,0);
+        end
     endtask
 
     task lookup_ctx;
@@ -325,7 +323,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
         repeat(4) @(posedge clk); rst_n=1;
         while(!os_init_done) @(posedge clk);
 
-        // Partial BUY OPEN fill 10 -> 7.
         cfg_state(0,0,10,0); insert_ctx(100,0,`HFT_RMIC_TAIFEX_POS_OPEN,10);
         send_event(`HFT_RMIC_TAIFEX_MSG_R02,0,`HFT_RMIC_TAIFEX_EXEC_TRADE,100,0,
                    `HFT_RMIC_TAIFEX_POS_OPEN,3,7,10,1,`HFT_RMIC_REASON_SRC_SYSTEM,
@@ -333,28 +330,23 @@ module tb_hft_rmic_committed_execution_bridge_v1;
         query_state(3,0,7,0); lookup_ctx(100,1,7);
         $display("HFT_RMIC_EXEC_PARTIAL_FILL_PASS");
 
-        // Even if an old committed report is accidentally redelivered, the
-        // before_qty/context mismatch prevents double application.
         send_event(`HFT_RMIC_TAIFEX_MSG_R02,0,`HFT_RMIC_TAIFEX_EXEC_TRADE,100,0,
                    `HFT_RMIC_TAIFEX_POS_OPEN,3,7,10,0,`HFT_RMIC_REASON_SRC_SYSTEM,
                    `HFT_RMIC_SYSTEM_REASON_EXEC_METADATA_MISMATCH,7);
         query_state(3,0,7,0);
         $display("HFT_RMIC_EXEC_DUPLICATE_FAIL_CLOSED_PASS");
 
-        // Gap/stale quantity likewise cannot mutate.
         send_event(`HFT_RMIC_TAIFEX_MSG_R32,0,`HFT_RMIC_TAIFEX_EXEC_TRADE,100,0,
                    `HFT_RMIC_TAIFEX_POS_OPEN,1,8,9,0,`HFT_RMIC_REASON_SRC_SYSTEM,
                    `HFT_RMIC_SYSTEM_REASON_EXEC_METADATA_MISMATCH,7);
         query_state(3,0,7,0);
 
-        // Next valid/replayed-then-committed report mutates exactly once.
         send_event(`HFT_RMIC_TAIFEX_MSG_R32,0,`HFT_RMIC_TAIFEX_EXEC_TRADE,100,0,
                    `HFT_RMIC_TAIFEX_POS_OPEN,2,5,7,1,`HFT_RMIC_REASON_SRC_SYSTEM,
                    `HFT_RMIC_SYSTEM_REASON_PASS,5);
         query_state(5,0,5,0);
         $display("HFT_RMIC_EXEC_REPLAY_COMMIT_ONCE_PASS");
 
-        // IOC-style terminal report: fill 2 and auto-release remaining 3.
         send_event(`HFT_RMIC_TAIFEX_MSG_R02,8'd47,`HFT_RMIC_TAIFEX_EXEC_TRADE,100,0,
                    `HFT_RMIC_TAIFEX_POS_OPEN,2,0,5,1,`HFT_RMIC_REASON_SRC_SYSTEM,
                    `HFT_RMIC_SYSTEM_REASON_PASS,0);
@@ -365,7 +357,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
         query_state(7,0,0,0);
         $display("HFT_RMIC_EXEC_TERMINAL_FILL_RELEASE_PASS");
 
-        // Cancel SELL OPEN releases all remaining pending short.
         cfg_state(7,0,0,4); insert_ctx(101,1,`HFT_RMIC_TAIFEX_POS_OPEN,4);
         send_event(`HFT_RMIC_TAIFEX_MSG_R02,0,`HFT_RMIC_TAIFEX_EXEC_CANCEL,101,1,
                    `HFT_RMIC_TAIFEX_POS_OPEN,0,0,4,1,`HFT_RMIC_REASON_SRC_SYSTEM,
@@ -373,7 +364,6 @@ module tb_hft_rmic_committed_execution_bridge_v1;
         query_state(7,0,0,0); lookup_ctx(101,0,0);
         $display("HFT_RMIC_EXEC_CANCEL_RELEASE_PASS");
 
-        // Reduce BUY OPEN 5 -> 2, then R03 releases the remaining 2 once.
         cfg_state(7,0,5,0); insert_ctx(102,0,`HFT_RMIC_TAIFEX_POS_OPEN,5);
         send_event(`HFT_RMIC_TAIFEX_MSG_R32,0,`HFT_RMIC_TAIFEX_EXEC_REDUCE,102,0,
                    `HFT_RMIC_TAIFEX_POS_OPEN,0,2,5,1,`HFT_RMIC_REASON_SRC_SYSTEM,
