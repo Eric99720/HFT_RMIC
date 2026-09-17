@@ -7,17 +7,8 @@
   "next_action": "Merge PR #2, create I4, and insert the closed I3 risk gate into a new integration-owned wrapper around the frozen HFT order_data to TMP R01 path without modifying the HFT submodule.",
   "active_plan": "docs/exec_plans/2026-09-17-i3-cl2ex-futures-risk-gate.md",
   "decision": "D-20260917-12",
-  "phase": {
-    "id": "I3",
-    "name": "Atomic CL2EX Futures Risk Gate",
-    "status": "COMPLETE",
-    "branch": "codex/i3-cl2ex-futures-risk-gate",
-    "pr": 2
-  },
-  "source_pins": {
-    "hft": "50217fad1fd580f8c451ba893f9035f4be1dc21a",
-    "rmic": "de6c300f4f18b18296f013287ab0eca70d3abb72"
-  },
+  "phase": {"id":"I3","name":"Atomic CL2EX Futures Risk Gate","status":"COMPLETE","branch":"codex/i3-cl2ex-futures-risk-gate","pr":2},
+  "source_pins": {"hft":"50217fad1fd580f8c451ba893f9035f4be1dc21a","rmic":"de6c300f4f18b18296f013287ab0eca70d3abb72"},
   "tasks": [
     {"id":"I3-01","status":"COMPLETE","title":"Implement atomic normalized CL2EX admission controller","acceptance":"Policy/accounting rejects do not create order context; accepted orders commit reserve plus AMU insert; duplicate/full insert failures release the exact reservation; rollback failure is fail-closed and never accepts."},
     {"id":"I3-02","status":"COMPLETE","title":"Build frozen-HFT 256-bit futures risk order gate","acceptance":"Account/product mapping, Side translation and configurable policy are fail-closed; accepted result payload is bit-for-bit identical to the frozen HFT input payload."},
