@@ -17,3 +17,11 @@ iverilog -g2012 \
   "$ROOT/tb/tb_hft_rmic_cl2ex_admission_v1.sv"
 
 vvp "$BUILD/hft_rmic_cl2ex_admission_v1_tb.vvp"
+
+iverilog -g2012 \
+  -I "$ROOT/rtl/include" \
+  -o "$BUILD/hft_rmic_cl2ex_admission_fault_v1_tb.vvp" \
+  "$ROOT/rtl/integration/hft_rmic_cl2ex_admission_v1.sv" \
+  "$ROOT/tb/tb_hft_rmic_cl2ex_admission_fault_v1.sv"
+
+vvp "$BUILD/hft_rmic_cl2ex_admission_fault_v1_tb.vvp"
