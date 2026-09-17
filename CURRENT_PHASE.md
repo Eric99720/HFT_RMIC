@@ -35,9 +35,7 @@ Routing errors    0
 Power         2.278 W vectorless
 ```
 
-The routed critical path remains inside the frozen AMU XPM BRAM candidate/match/forwarding path. Mapping, policy, futures reservation and rollback do not become the timing bottleneck.
-
-Durable result: `docs/results/i3_atomic_cl2ex_ooc_postroute.md`.
+The routed critical path remains inside the frozen AMU XPM BRAM candidate/match/forwarding path.
 
 ## Frozen dependencies
 
