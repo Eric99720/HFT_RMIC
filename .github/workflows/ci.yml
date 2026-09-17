@@ -68,3 +68,6 @@ jobs:
 
       - name: Compile I3 atomic CL2EX OOC composition harness
         run: bash scripts/run_i3_cl2ex_ooc_compile_iverilog.sh
+
+      - name: Compile I4 shared risk-to-R01 composition harness
+        run: bash scripts/run_i4_r01_ooc_compile_iverilog.sh
