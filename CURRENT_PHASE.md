@@ -41,11 +41,26 @@ Exact-head GitHub CI passes both governance and integration-regression jobs. Fun
 - IOC-style fill plus terminal release;
 - cancel and reduce reservation release;
 - R03 exchange-reject release and delete-once behavior;
-- I2 OOC composition SystemVerilog compile-smoke.
+- I2 OOC composition SystemVerilog compile-smoke;
+- Vivado 2022.1 Tcl compatibility guard.
 
 The CI AMU stub validates only the integration wrapper contract. It is **not** evidence for hash collision behavior, XPM BRAM mapping, or physical timing. Those properties remain frozen-RMIC upstream evidence until the real-AMU I2 Vivado composition is measured.
 
-## I2-04 remaining gate
+## I2-04 local verification status
+
+The first local Vivado invocation on 2026-09-17 stopped **before RTL parsing/synthesis** because Vivado 2022.1 does not support `read_verilog -include_dirs`. This was a build-flow API compatibility error, not an RTL, BRAM, timing or architecture failure.
+
+The phase branch now uses a Vivado-2022.1-compatible ephemeral in-memory project/fileset:
+
+```text
+create_project -in_memory
+add_files headers + SystemVerilog sources
+set_property include_dirs ... [current_fileset]
+auto_detect_xpm
+synth_design -mode out_of_context
+```
+
+A governance CI guard fails if the unsupported `read_verilog -include_dirs` form reappears. The corrected flow still compiles the **real pinned** `deps/RMIC` XPM AMU during local Vivado execution.
 
 The prepared OOC top is a physical-composition harness, not the final HFT production top. It combines:
 
@@ -73,6 +88,21 @@ Acceptance requires:
 
 The runner packages all reports/logs plus both frozen dependency SHAs into `build\packages\HFT_RMIC_i2_ooc_impl_*.zip`.
 
+## Junior U50/network candidate disposition
+
+The supplied junior archive was audited separately and **does not change the I2 HFT pin**. The embedded HFT snapshot is not byte-identical to frozen `50217fad...` and has no exact Git identity, including differences outside the intentionally overridden network modules. Wholesale replacement is therefore rejected.
+
+Useful candidate work is retained for a dedicated post-I2 migration phase:
+
+- TCP Data-Offset/options-aware RX parsing;
+- SYN retry guard;
+- optional static-remote-MAC lab mode while ARP remains the production default;
+- reproducibly pinned U50 10G PCS/GT backend and board wrapper.
+
+The candidate `BODY-LENGTH+22` behavior is legacy captured-PCAP compatibility only; frozen HFT's official `BODY-LENGTH+12` default is retained. The supplied U25/U50 R01/R02 board PASS and timing-clean bitstream are useful **provided hardware evidence**, but HFT_RMIC has not independently reproduced them yet. The reported `398.9 ns` active-path latency remains simulation/endpoint-attribution evidence, not board-measured latency.
+
+See `docs/research_notes/hft_network_candidate_audit.md` and decision `D-20260917-09`.
+
 ## Current claim limit
 
-I2 functional correctness is established by self-checking simulation and exact-head CI. Integration OOC/post-route closure is **not yet established** until the local Vivado package is reviewed. No full HFT+RMIC datapath, board latency, live exchange behavior, TAIFEX SPAN implementation, or exchange conformance is claimed.
+I2 functional correctness is established by self-checking simulation and exact-head CI. Integration OOC/post-route closure is **not yet established** until the corrected local Vivado package is reviewed. No full HFT+RMIC datapath, board latency, live exchange behavior, TAIFEX SPAN implementation, or exchange conformance is claimed.
