@@ -84,7 +84,10 @@ module tb_hft_rmic_shared_core_v1;
             guard=0;
             while(!accepted_order_valid && !reject_valid) begin @(posedge clk); guard=guard+1; if(guard>300) fail("order result timeout"); end
             #1;
-            if(exp_accept && !accepted_order_valid) fail("expected accept");
+            if(exp_accept && !accepted_order_valid) begin
+                $display("I4_UNEXPECTED_REJECT order_id=%0d source=%0d code=%0d owner=%0d recovery=%0d", reject_order_id,reject_reason_source,reject_reason_code,transaction_owner,recovery_required);
+                fail("expected accept");
+            end
             if(!exp_accept && !reject_valid) fail("expected reject");
             if(exp_accept && accepted_order_data!==d) fail("accepted payload changed");
             @(posedge clk);
@@ -102,7 +105,7 @@ module tb_hft_rmic_shared_core_v1;
             while(!(exec_commit_valid&&exec_commit_ready)) begin @(posedge clk); guard=guard+1; if(guard>200) fail("exec handshake timeout"); end
             @(negedge clk); exec_commit_valid=0; guard=0;
             while(!exec_result_valid) begin @(posedge clk); guard=guard+1; if(guard>400) fail("exec result timeout"); end
-            #1; if(!exec_result_ok) fail("exec expected success");
+            #1; if(!exec_result_ok) begin $display("I4_EXEC_FAIL source=%0d code=%0d owner=%0d",exec_result_reason_source,exec_result_reason_code,transaction_owner); fail("exec expected success"); end
             @(posedge clk);
         end
     endtask
@@ -117,22 +120,16 @@ module tb_hft_rmic_shared_core_v1;
         while(!store_init_done) @(posedge clk);
         map_cfg(); state_cfg();
 
-        // BUY OPEN two contracts: reserve + context insert.
         send_order(mk_order(100,100,2,`HFT_RMIC_TMP_SIDE_BUY,`HFT_RMIC_TAIFEX_POS_OPEN),1);
         if(accepted_order_id!=100) fail("accepted order id mismatch");
         $display("I4_SHARED_CL_ACCEPT_PASS");
 
-        // Full committed fill updates long position and deletes context.
         send_exec(100,`HFT_RMIC_TAIFEX_EXEC_TRADE,`HFT_RMIC_RMIC_SIDE_BUY,`HFT_RMIC_TAIFEX_POS_OPEN,2,0,2);
         $display("I4_SHARED_EXEC_FILL_PASS");
 
-        // SELL CLOSE can only pass if the committed fill above updated the same
-        // shared futures-state owner to long_position=2.
         send_order(mk_order(101,100,2,`HFT_RMIC_TMP_SIDE_SELL,`HFT_RMIC_TAIFEX_POS_CLOSE),1);
         $display("I4_SHARED_STATE_CLOSED_LOOP_PASS");
 
-        // Create an outstanding OPEN order that will be cancelled while a new
-        // order is presented. Execution must win owner acquisition.
         send_order(mk_order(102,100,1,`HFT_RMIC_TMP_SIDE_BUY,`HFT_RMIC_TAIFEX_POS_OPEN),1);
         @(negedge clk);
         order_data=mk_order(103,100,1,`HFT_RMIC_TMP_SIDE_BUY,`HFT_RMIC_TAIFEX_POS_OPEN); order_valid=1;
