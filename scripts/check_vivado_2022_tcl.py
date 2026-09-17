@@ -17,6 +17,7 @@ for p in sorted(vivado_dir.glob("*.tcl")):
 required_in_memory = [
     vivado_dir / "i2_ooc_impl.tcl",
     vivado_dir / "i3_cl2ex_ooc_impl.tcl",
+    vivado_dir / "i4_r01_path_ooc_impl.tcl",
 ]
 for p in required_in_memory:
     if not p.exists():
