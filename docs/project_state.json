@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "record_revision": "2026-09-17-i2-closed-v1",
+  "observed_at_utc": "2026-09-17T15:48:00Z",
+  "goal": "Integrate the frozen dual-XGMII HFT baseline with the frozen RMIC M5.4 transactional core without modifying either upstream, while closing TAIFEX futures accounting, execution idempotency, safety-policy, timing, and end-to-end validation gaps.",
+  "handoff": "I2 is complete. Multi-account/product futures state, order context over the real pinned RMIC AMU, committed R02/R32 and R03 reconciliation, replay/idempotency defenses, reset recovery, and 156.25 MHz U50 OOC timing closure are all verified at their stated evidence layers.",
+  "next_action": "Merge PR #1, create the I3 phase branch, and build the CL2EX futures risk gate with atomic futures reservation plus order-context admission before the frozen HFT R01 encoder.",
+  "active_plan": "docs/exec_plans/2026-09-17-i2-futures-state-manager.md",
+  "decision": "D-20260917-10",
+  "phase": {
+    "id": "I2",
+    "name": "Futures State Manager",
+    "status": "COMPLETE",
+    "branch": "codex/i2-futures-state-manager",
+    "pr": 1
+  },
+  "source_pins": {
+    "hft": "50217fad1fd580f8c451ba893f9035f4be1dc21a",
+    "rmic": "de6c300f4f18b18296f013287ab0eca70d3abb72"
+  },
+  "tasks": [
+    {
+      "id": "I2-01",
+      "status": "COMPLETE",
+      "title": "Adopt repository governance and phase workflow",
+      "acceptance": "Canonical project records, AGENTS policy, layout/results policies, sync/layout checks and CI governance checks are present and passing."
+    },
+    {
+      "id": "I2-02",
+      "status": "COMPLETE",
+      "title": "Implement multi-account/multi-product futures state manager",
+      "acceptance": "Independent account/product state, OPEN/CLOSE long/short reservations and fills are self-checking with no cross-account contamination and fail-closed invalid access."
+    },
+    {
+      "id": "I2-03",
+      "status": "COMPLETE",
+      "title": "Bind committed TAIFEX execution/reject lifecycle",
+      "acceptance": "Order context resolves account/product/PositionEffect by order_id; committed R02/R32 fill, terminal release, cancel and reduce plus validated R03 reject release are self-checking; stale/duplicate/mismatched events cannot double-apply state."
+    },
+    {
+      "id": "I2-04",
+      "status": "COMPLETE",
+      "title": "Measure I2 real-AMU OOC timing/resources",
+      "acceptance": "Vivado 2022.1 OOC composition using the pinned RMIC XPM AMU at 6.400 ns reports real block RAM use, WNS >= 0, TNS = 0, zero routing errors and reviewed utilization/DRC/power evidence."
+    },
+    {
+      "id": "I3-01",
+      "status": "PLANNED",
+      "title": "Build CL2EX futures risk gate and atomic reservation/order-context admission",
+      "acceptance": "Risk-rejected orders never enter R01; accepted original HFT payload is byte-identical; futures reserve plus order-context insertion is atomic or deterministically rolled back."
+    }
+  ],
+  "milestones": [
+    {
+      "date": "2026-09-17",
+      "evidence": "docs/source_baselines.md",
+      "id": "I0-FROZEN-SOURCES",
+      "summary": "HFT and RMIC upstreams pinned as read-only submodules at frozen pre-integration baselines."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "docs/rmic_gap_analysis.md",
+      "id": "I1-ADAPTER-POLICY",
+      "summary": "Order field mapping and fail-closed policy shell established with integration-level reject namespace."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "docs/taifex_futures_accounting_contract_v1.md",
+      "id": "I1-FUTURES-ACCOUNTING",
+      "summary": "Futures accounting v1 separates long/short and OPEN/CLOSE semantics using a host-configured margin-per-contract research model; not a TAIFEX SPAN claim."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "rtl/adapters/hft_tmp_exec_position_tap.sv",
+      "id": "I1-EXEC-META-TAP",
+      "summary": "Integration-owned R02/R32 fixed-offset tap captures PositionEffect and before_qty fields missing from the frozen HFT decoder; mutation authority remains external committed-report ownership."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "AGENTS.md",
+      "id": "I2-GOVERNANCE",
+      "summary": "LOB-inspired phase governance adopted: canonical project state, append-only decisions, living ExecPlan, one phase branch/PR, evidence-layer boundaries and mechanical governance CI."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "tb/tb_hft_rmic_futures_state_manager_v1.sv",
+      "id": "I2-STATE-MANAGER-FUNCTIONAL",
+      "summary": "Multi-account/product futures state manager regression passed key isolation, short open, long close, margin reject, fail-closed ownership, config priority and reset-recovery cases. Initial CI timeout was a testbench handshake race and is preserved in the I2 plan."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "rtl/integration/hft_rmic_futures_order_store_v1.sv",
+      "id": "I2-ORDER-CONTEXT",
+      "summary": "A 96-bit futures order context keyed by order_id reuses the frozen RMIC AMU contract for account/product/side/PositionEffect/OrdType/TIF/limit-price/remaining-qty ownership without reusing stock-like account accounting."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "tb/tb_hft_rmic_committed_execution_bridge_v1.sv",
+      "id": "I2-COMMITTED-EXECUTION",
+      "summary": "Committed execution reconciliation regression passes partial fill, stale/duplicate fail-closed, replay-once, fill-plus-terminal-release, cancel, reduce and R03 release-once scenarios with exact order-context lifecycle updates."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "scripts/run_i2_ooc_impl.ps1",
+      "id": "I2-OOC-HARNESS-READY",
+      "summary": "Real-AMU I2 OOC Vivado flow, packaging and CI compile-smoke are prepared and passing."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence": "docs/results/i2_futures_state_ooc_postroute.md",
+      "id": "I2-OOC-POSTROUTE",
+      "summary": "Real-AMU I2 U50 OOC closes at 156.25 MHz after structural state/margin pipelining: synth WNS +2.318 ns, routed WNS +1.078 ns, TNS 0, 3396 LUT, 2383 FF, 19 RAMB36 + 1 RAMB18, 10 DSP, and zero routing errors."
+    }
+  ]
+}
