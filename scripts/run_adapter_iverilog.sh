@@ -12,3 +12,11 @@ iverilog -g2012 \
   "$ROOT/tb/tb_hft_order_to_rmic.sv"
 
 vvp "$BUILD/hft_order_to_rmic_tb.vvp"
+
+iverilog -g2012 \
+  -I "$ROOT/rtl/include" \
+  -o "$BUILD/hft_rmic_policy_gate_tb.vvp" \
+  "$ROOT/rtl/policy/hft_rmic_policy_gate.sv" \
+  "$ROOT/tb/tb_hft_rmic_policy_gate.sv"
+
+vvp "$BUILD/hft_rmic_policy_gate_tb.vvp"
