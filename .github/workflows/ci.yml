@@ -59,3 +59,6 @@ jobs:
 
       - name: Compile I2 OOC composition harness
         run: bash scripts/run_i2_ooc_compile_iverilog.sh
+
+      - name: Compile I3 atomic CL2EX OOC composition harness
+        run: bash scripts/run_i3_cl2ex_ooc_compile_iverilog.sh
