@@ -28,6 +28,7 @@ The authoritative TAIFEX protocol references themselves remain in the pinned HFT
 ## Results
 
 - [`results/i2_futures_state_ooc_postroute.md`](results/i2_futures_state_ooc_postroute.md) — I2 real-AMU U50 OOC/post-route closure, timing-repair history, resources, DRC and claim limits.
+- [`results/i3_atomic_cl2ex_ooc_postroute.md`](results/i3_atomic_cl2ex_ooc_postroute.md) — I3 atomic CL2EX mapping/policy/reserve/rollback plus real-AMU U50 OOC closure.
 
 ## Historical/current ledgers
 

@@ -47,9 +47,21 @@ try {
             & $bash.Source scripts/run_execution_bridge_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'execution reconciliation regression failed' }
 
+            Write-Host '[HFT_RMIC] Running I3 atomic CL2EX admission regression...'
+            & $bash.Source scripts/run_cl2ex_admission_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I3 atomic CL2EX admission regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I3 frozen-HFT order-gate regression...'
+            & $bash.Source scripts/run_order_gate_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I3 order-gate regression failed' }
+
             Write-Host '[HFT_RMIC] Compiling I2 OOC composition harness...'
             & $bash.Source scripts/run_i2_ooc_compile_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'I2 OOC composition compile failed' }
+
+            Write-Host '[HFT_RMIC] Compiling I3 atomic CL2EX OOC composition harness...'
+            & $bash.Source scripts/run_i3_cl2ex_ooc_compile_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I3 CL2EX OOC composition compile failed' }
         }
     }
 
