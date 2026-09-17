@@ -57,6 +57,12 @@ jobs:
       - name: Run I3 frozen-HFT order-gate regression
         run: bash scripts/run_order_gate_iverilog.sh
 
+      - name: Run I4 shared CL2EX/EX2CL ownership regression
+        run: bash scripts/run_i4_shared_core_iverilog.sh
+
+      - name: Run I4 dual-source risk-to-encoder regression
+        run: bash scripts/run_i4_r01_stub_iverilog.sh
+
       - name: Compile I2 OOC composition harness
         run: bash scripts/run_i2_ooc_compile_iverilog.sh
 
