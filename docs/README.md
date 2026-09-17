@@ -25,6 +25,10 @@ Start here for durable project context. Current execution state is in [`../CURRE
 
 The authoritative TAIFEX protocol references themselves remain in the pinned HFT submodule under `deps/hft-full-system-fpga/docs/references/taifex/`. This repository records integration interpretations and tests; it does not duplicate or edit the upstream reference library.
 
+## Results
+
+- [`results/i2_futures_state_ooc_postroute.md`](results/i2_futures_state_ooc_postroute.md) — I2 real-AMU U50 OOC/post-route closure, timing-repair history, resources, DRC and claim limits.
+
 ## Historical/current ledgers
 
 At repository root:
