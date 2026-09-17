@@ -114,7 +114,7 @@ auto_release = before_qty - LastQty - LeavesQty
 
 **Status:** Adopted.
 
-**Decision:** Do not replace the frozen HFT submodule with the user-supplied `my_code-20260916T141751Z-1-001(1).zip` snapshot and do not advance the HFT source pin during I2. After I2 closure, evaluate a dedicated network/hardware migration phase that selectively recreates the candidate's useful behavior against the current pinned HFT source: TCP Data-Offset/options support, SYN retry, optional static-MAC lab mode, and a reproducibly pinned U50 10G PCS/GT backend. Preserve official TAIFEX `BODY-LENGTH+12`; the candidate's `+22` mode is legacy captured-PCAP compatibility only.
+**Decision:** Do not replace the frozen HFT submodule with the user-supplied junior bundle and do not advance the HFT source pin during I2. After I2 closure, evaluate a dedicated network/hardware migration phase that selectively recreates the candidate's useful behavior against the current pinned HFT source: TCP Data-Offset/options support, SYN retry, optional static-MAC lab mode, and a reproducibly pinned U50 10G PCS/GT backend. Preserve official TAIFEX `BODY-LENGTH+12`; the candidate's `+22` mode is legacy captured-PCAP compatibility only.
 
 **Why:** The bundle contains meaningful board-level R01/R02 evidence and timing-clean U50 artifacts, but its embedded HFT snapshot has no Git identity and differs from the frozen baseline in both network and non-network files. Wholesale copying would combine promising network fixes with uncontrolled source-version regression. The copied `verilog-ethernet` tree also lacks an exact Git revision in the bundle.
 
