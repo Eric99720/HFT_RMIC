@@ -48,16 +48,15 @@ Neither upstream was modified during I3.
 
 ## Next phase
 
-I4 will instantiate frozen HFT lower-level modules from the pinned submodule in an integration-owned top. The first target is the CL2EX application path:
+I4 will instantiate frozen HFT lower-level modules from the pinned submodule in an integration-owned top. Both frozen order-data producers must be risk-gated:
 
 ```text
-frozen strategy/order_data producer
-  -> I3 atomic risk gate
-  -> accepted original 256-bit order_data only
-  -> frozen financial_protocol_encoder / R01 path
+legacy bridge order_data ----\
+                              -> one I3 atomic risk gate -> frozen R01 encoder
+R01 prebuild order_data -----/
 ```
 
-Acceptance requires rejected orders to produce no R01, accepted R01 bytes to match the frozen-HFT baseline for the same order, and no source edits under `deps/`.
+The formal frozen XGMII baseline enables `ENABLE_R01_PREBUILD=1`, so allowing prebuild to bypass RM is prohibited. Acceptance requires rejected orders to produce no R01, accepted R01 bytes to match the frozen-HFT baseline for the same order, and no source edits under `deps/`.
 
 ## Claim limit
 
