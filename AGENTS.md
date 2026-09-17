@@ -51,10 +51,10 @@ Core checks from repository root:
 
 ```powershell
 pwsh .\scripts\setup.ps1
-bash scripts/run_adapter_iverilog.sh
-bash scripts/run_accounting_iverilog.sh
+pwsh .\scripts\preflight.ps1
 python -B scripts/sync_project_records.py --check
 python -B scripts/check_repository_layout.py
+python -B scripts/check_vivado_2022_tcl.py
 git diff --check
 ```
 
@@ -112,5 +112,7 @@ Follow `docs/repository_layout.md` and `docs/results_policy.md`.
 ## Current project direction
 
 The frozen RMIC M5.4 core is architecturally complete as a generic transactional RM engine, but TAIFEX futures semantics are integration responsibilities. Current priorities are futures-aware multi-account/product state, committed R02/R32 execution reconciliation, policy/rate/outstanding controls, then full HFT insertion and A/B latency/resource validation.
+
+A separately audited junior U50/network bundle is a candidate for a later dedicated network/PHY migration phase only. Do not replace the frozen HFT submodule wholesale. Selectively port independently verified network fixes against the then-current source, preserve official TAIFEX BODY-LENGTH semantics, pin external PHY dependencies exactly, and require matched regression/hardware A/B evidence before any HFT source-pin change.
 
 Do not claim complete TAIFEX risk compliance until the integration P0 contracts, authoritative field semantics, end-to-end tests, timing closure, recovery behavior, and required hardware validation are complete.
