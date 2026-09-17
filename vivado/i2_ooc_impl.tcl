@@ -17,6 +17,7 @@ set incdirs [list \
 set sources [list \
     [file join $root "deps" "RMIC" "rtl" "amu_bank_ram.sv"] \
     [file join $root "deps" "RMIC" "rtl" "amu_banked_double_hash_v2.sv"] \
+    [file join $root "rtl" "accounting" "hft_rmic_futures_transition_v1.sv"] \
     [file join $root "rtl" "accounting" "hft_rmic_futures_accounting_v1.sv"] \
     [file join $root "rtl" "accounting" "hft_rmic_state_ram.sv"] \
     [file join $root "rtl" "accounting" "hft_rmic_futures_state_manager_v1.sv"] \
@@ -37,7 +38,7 @@ foreach f [concat $headers $sources] {
 }
 
 # Vivado 2022.1 UG835 documents read_verilog as supporting only
-# -library/-sv/-quiet/-verbose; it does not accept -include_dirs.  Use an
+# -library/-sv/-quiet/-verbose; it does not accept -include_dirs. Use an
 # ephemeral in-memory project so the standard sources_1 include_dirs property
 # can carry the integration and frozen-RMIC header paths without writing an
 # .xpr project into the repository.
@@ -49,7 +50,7 @@ set_property file_type SystemVerilog [get_files *.sv]
 set_property include_dirs $incdirs [current_fileset]
 set_property top $top [current_fileset]
 
-# Both physical memories instantiate XPM explicitly.  Keep auto_detect_xpm as
+# Both physical memories instantiate XPM explicitly. Keep auto_detect_xpm as
 # an acceptance prerequisite; the diagnostic property is optional by release.
 if {[catch {auto_detect_xpm} xpm_err]} {
     error "auto_detect_xpm failed: $xpm_err"
@@ -61,6 +62,7 @@ if {![catch {set detected_xpm [get_property XPM_LIBRARIES [current_project]]}]} 
     }
 }
 puts "HFT_RMIC_XPM_LIBRARIES=$xpm_libs"
+puts "HFT_RMIC_STATE_PIPELINE=BRAM_CAPTURE_TRANSITION_MARGIN_DECIDE"
 
 synth_design -top $top -part $part -flatten_hierarchy rebuilt -mode out_of_context
 create_clock -name hft_rmic_clk -period 6.400 [get_ports clk]
