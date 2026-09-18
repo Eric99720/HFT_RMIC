@@ -106,6 +106,10 @@ try {
             Write-Host '[HFT_RMIC] Running I5 cached hot-map regression...'
             & $bash.Source scripts/run_i5_cached_exact_map_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'I5 cached hot-map regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 parallel atomic admission regression...'
+            & $bash.Source scripts/run_i5_parallel_admission_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 parallel atomic admission regression failed' }
         }
     }
 
