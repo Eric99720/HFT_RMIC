@@ -18,6 +18,7 @@ required_in_memory = [
     vivado_dir / "i2_ooc_impl.tcl",
     vivado_dir / "i3_cl2ex_ooc_impl.tcl",
     vivado_dir / "i4_r01_path_ooc_impl.tcl",
+    vivado_dir / "i5_dual_xgmii_full_system_ooc.tcl",
 ]
 for p in required_in_memory:
     if not p.exists():
@@ -50,6 +51,25 @@ if i4_ooc.exists():
     for macro in ("AMU_BEHAVIORAL_RAM", "HFT_RMIC_BEHAVIORAL_RAM"):
         if macro in i4_ooc_text:
             errors.append(f"i4_r01_path_ooc_impl.tcl: physical OOC must not define {macro}")
+
+
+# I5 functional simulation deliberately uses behavioral RAM fallbacks, while
+# the I5 physical OOC must use real XPM RAM.
+i5_xsim = vivado_dir / "i5_dual_xgmii_full_system_xsim.tcl"
+if not i5_xsim.exists():
+    errors.append("missing I5 dual-XGMII XSim Tcl")
+else:
+    text = i5_xsim.read_text(encoding="utf-8")
+    for macro in ("AMU_BEHAVIORAL_RAM", "HFT_RMIC_BEHAVIORAL_RAM"):
+        if macro not in text:
+            errors.append(f"i5_dual_xgmii_full_system_xsim.tcl: missing {macro}")
+
+i5_ooc = vivado_dir / "i5_dual_xgmii_full_system_ooc.tcl"
+if i5_ooc.exists():
+    text = i5_ooc.read_text(encoding="utf-8")
+    for macro in ("AMU_BEHAVIORAL_RAM", "HFT_RMIC_BEHAVIORAL_RAM"):
+        if macro in text:
+            errors.append(f"i5_dual_xgmii_full_system_ooc.tcl: physical OOC must not define {macro}")
 
 if errors:
     print("VIVADO_2022_TCL_CHECK_FAIL")
