@@ -63,9 +63,21 @@ net = (root / "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv").read
 if "hft_round_chip_app_top #(" in net:
     errors.append("I5 trading-port top instantiates frozen app directly instead of risk-aware app")
 
+if ".cfg_position_effect(8'h4f)" in net:
+    errors.append("I5 trading-port top still hard-codes PositionEffect OPEN")
+if ".cfg_position_effect(cfg_position_effect)" not in net:
+    errors.append("I5 trading-port top does not propagate configurable PositionEffect")
+if "input  wire [7:0]             cfg_position_effect" not in net:
+    errors.append("I5 trading-port top lacks PositionEffect host input")
+
 dual = (root / "rtl/integration/hft_rmic_dual_xgmii_full_system_top_v1.sv").read_text(encoding="utf-8")
 if "hft_xgmii_network_layer_e2e_top #(" in dual:
     errors.append("I5 dual-XGMII top instantiates frozen trading core directly instead of risk-aware core")
+
+if ".cfg_position_effect(cfg_position_effect)" not in dual:
+    errors.append("I5 dual-XGMII top does not propagate PositionEffect to trading core")
+if "input  wire [7:0]             cfg_position_effect" not in dual:
+    errors.append("I5 dual-XGMII top lacks PositionEffect host input")
 
 if errors:
     print("I5_DERIVED_CONTRACT_CHECK_FAIL")
