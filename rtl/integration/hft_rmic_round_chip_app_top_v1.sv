@@ -149,6 +149,7 @@ module hft_rmic_round_chip_app_top_v1 #(
     output wire [31:0]                  risk_exec_result_order_id,
     output wire [15:0]                  risk_exec_result_remaining_qty,
     output wire                         risk_exec_metadata_error,
+    output wire                         risk_exec_queue_overflow,
 
     // Direct application-layer helpers for smoke simulation. When disabled,
     // the top uses hft_rx_order_book_top outputs.
@@ -297,6 +298,14 @@ module hft_rmic_round_chip_app_top_v1 #(
     wire shared_recovery_required;
     reg  risk_exec_metadata_error_sticky;
     wire bridge_error_i;
+    wire execq_valid, execq_ready;
+    wire [7:0] execq_msg_type, execq_status_code, execq_exec_type;
+    wire [31:0] execq_order_id, execq_order_price;
+    wire execq_side;
+    wire [7:0] execq_position_effect;
+    wire [15:0] execq_last_qty, execq_leaves_qty, execq_before_qty;
+    wire execq_overflow_sticky;
+    wire [3:0] execq_occupancy;
 
     wire selected_book_update_valid;
     wire selected_book_stale;
@@ -776,6 +785,30 @@ module hft_rmic_round_chip_app_top_v1 #(
         .bridge_error(bridge_error_i)
     );
 
+    hft_rmic_exec_commit_fifo_v1 #(.DEPTH(8), .PTR_W(3)) u_i5_exec_fifo (
+        .clk(clk), .rst_n(rst_n),
+        .flush(risk_recovery_clear && (risk_transaction_owner == 2'd0)),
+        .s_valid(rx_risk_commit_valid && !rx_risk_commit_metadata_error),
+        .s_ready(),
+        .s_msg_type(rx_risk_commit_msg_type),
+        .s_status_code(rx_risk_commit_status_code),
+        .s_exec_type(rx_risk_commit_exec_type),
+        .s_order_id(rx_risk_commit_order_id),
+        .s_side(rx_risk_commit_side),
+        .s_position_effect(rx_risk_commit_position_effect),
+        .s_order_price(rx_risk_commit_order_price),
+        .s_last_qty(rx_risk_commit_last_qty),
+        .s_leaves_qty(rx_risk_commit_leaves_qty),
+        .s_before_qty(rx_risk_commit_before_qty),
+        .m_valid(execq_valid), .m_ready(execq_ready),
+        .m_msg_type(execq_msg_type), .m_status_code(execq_status_code),
+        .m_exec_type(execq_exec_type), .m_order_id(execq_order_id),
+        .m_side(execq_side), .m_position_effect(execq_position_effect),
+        .m_order_price(execq_order_price), .m_last_qty(execq_last_qty),
+        .m_leaves_qty(execq_leaves_qty), .m_before_qty(execq_before_qty),
+        .overflow_sticky(execq_overflow_sticky), .occupancy(execq_occupancy)
+    );
+
     hft_rmic_dual_order_source_v1 #(.ORDER_WIDTH(ORDER_WIDTH)) u_i5_order_source (
         .legacy_valid(bridge_strategy_order_valid),
         .legacy_ready(risk_legacy_ready),
@@ -791,7 +824,7 @@ module hft_rmic_round_chip_app_top_v1 #(
 
     hft_rmic_shared_core_v1 #(.ORDER_WIDTH(ORDER_WIDTH), .QTY_W(16), .MARGIN_W(64)) u_i5_risk (
         .clk(clk), .rst_n(rst_n),
-        .integration_ready(risk_integration_ready && !risk_exec_metadata_error_sticky),
+        .integration_ready(risk_integration_ready && !risk_exec_metadata_error_sticky && !execq_overflow_sticky),
         .accounting_ready(risk_accounting_ready),
         .global_kill(risk_global_kill),
         .recovery_clear(risk_recovery_clear),
@@ -839,18 +872,18 @@ module hft_rmic_round_chip_app_top_v1 #(
         .reject_order_id(risk_reject_order_id),
         .reject_reason_source(risk_reject_reason_source),
         .reject_reason_code(risk_reject_reason_code),
-        .exec_commit_valid(rx_risk_commit_valid && !rx_risk_commit_metadata_error),
-        .exec_commit_ready(),
-        .exec_commit_msg_type(rx_risk_commit_msg_type),
-        .exec_commit_status_code(rx_risk_commit_status_code),
-        .exec_commit_exec_type(rx_risk_commit_exec_type),
-        .exec_commit_order_id(rx_risk_commit_order_id),
-        .exec_commit_side(rx_risk_commit_side),
-        .exec_commit_position_effect(rx_risk_commit_position_effect),
-        .exec_commit_order_price(rx_risk_commit_order_price),
-        .exec_commit_last_qty(rx_risk_commit_last_qty),
-        .exec_commit_leaves_qty(rx_risk_commit_leaves_qty),
-        .exec_commit_before_qty(rx_risk_commit_before_qty),
+        .exec_commit_valid(execq_valid),
+        .exec_commit_ready(execq_ready),
+        .exec_commit_msg_type(execq_msg_type),
+        .exec_commit_status_code(execq_status_code),
+        .exec_commit_exec_type(execq_exec_type),
+        .exec_commit_order_id(execq_order_id),
+        .exec_commit_side(execq_side),
+        .exec_commit_position_effect(execq_position_effect),
+        .exec_commit_order_price(execq_order_price),
+        .exec_commit_last_qty(execq_last_qty),
+        .exec_commit_leaves_qty(execq_leaves_qty),
+        .exec_commit_before_qty(execq_before_qty),
         .exec_result_valid(risk_exec_result_valid),
         .exec_result_ready(1'b1),
         .exec_result_ok(risk_exec_result_ok),
@@ -860,8 +893,9 @@ module hft_rmic_round_chip_app_top_v1 #(
         .exec_result_remaining_qty(risk_exec_result_remaining_qty)
     );
 
-    assign risk_recovery_required = shared_recovery_required | risk_exec_metadata_error_sticky;
+    assign risk_recovery_required = shared_recovery_required | risk_exec_metadata_error_sticky | execq_overflow_sticky;
     assign risk_exec_metadata_error = rx_risk_commit_metadata_error;
+    assign risk_exec_queue_overflow = execq_overflow_sticky;
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n)
