@@ -292,10 +292,6 @@ module hft_rmic_round_chip_app_top_v1 #(
     wire risk_source_ready;
     wire [ORDER_WIDTH-1:0] risk_source_data;
     wire risk_source_prebuild;
-    wire risk_source_raw_valid;
-    wire risk_source_raw_ready;
-    wire [ORDER_WIDTH-1:0] risk_source_raw_data;
-    wire risk_source_raw_prebuild;
     wire risk_accepted_valid;
     wire [ORDER_WIDTH-1:0] risk_accepted_data;
     wire [31:0] risk_accepted_order_id;
@@ -850,27 +846,16 @@ module hft_rmic_round_chip_app_top_v1 #(
         .prebuild_valid(ENABLE_R01_PREBUILD ? prebuild_direct_valid : 1'b0),
         .prebuild_accept(risk_prebuild_accept),
         .prebuild_data(prebuilt_order_data),
-        .risk_valid(risk_source_raw_valid),
-        .risk_ready(risk_source_raw_ready),
-        .risk_data(risk_source_raw_data),
-        .risk_source_prebuild(risk_source_raw_prebuild)
+        .risk_valid(risk_source_valid),
+        .risk_ready(risk_source_ready),
+        .risk_data(risk_source_data),
+        .risk_source_prebuild(risk_source_prebuild)
     );
 
-    hft_rmic_order_ingress_slice_v1 #(.ORDER_WIDTH(ORDER_WIDTH)) u_i5_order_ingress_slice (
-        .clk(clk),
-        .rst_n(rst_n),
-        .clear(risk_recovery_clear && (risk_transaction_owner == 2'd0)),
-        .s_valid(risk_source_raw_valid),
-        .s_ready(risk_source_raw_ready),
-        .s_data(risk_source_raw_data),
-        .s_source_prebuild(risk_source_raw_prebuild),
-        .m_valid(risk_source_valid),
-        .m_ready(risk_source_ready),
-        .m_data(risk_source_data),
-        .m_source_prebuild(risk_source_prebuild)
-    );
-
-    hft_rmic_shared_core_v1 #(.ORDER_WIDTH(ORDER_WIDTH), .QTY_W(16), .MARGIN_W(64)) u_i5_risk (
+    hft_rmic_shared_core_v1 #(
+        .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(16), .MARGIN_W(64),
+        .ENABLE_HOT_MAP_CACHE(1)
+    ) u_i5_risk (
         .clk(clk), .rst_n(rst_n),
         .integration_ready(risk_integration_ready && !risk_exec_metadata_error_sticky && !execq_overflow_sticky),
         .accounting_ready(risk_accounting_ready),
@@ -892,6 +877,8 @@ module hft_rmic_round_chip_app_top_v1 #(
         .product_cfg_valid(risk_product_cfg_valid),
         .product_cfg_key(risk_product_cfg_key),
         .product_cfg_value(risk_product_cfg_value),
+        .hot_account_key(cfg_investor_acno),
+        .hot_product_key(cfg_symbol_slot),
         .cfg_valid(risk_state_cfg_valid),
         .cfg_ready(risk_state_cfg_ready),
         .cfg_account_id(risk_state_cfg_account_id),

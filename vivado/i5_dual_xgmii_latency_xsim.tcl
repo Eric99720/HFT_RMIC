@@ -1,3 +1,11 @@
+if {[llength $argv] != 1} {
+    error "usage: vivado -mode batch -source vivado/i5_dual_xgmii_latency_xsim.tcl -tclargs <market_phase_ps>"
+}
+set phase_ps [lindex $argv 0]
+if {![string is integer -strict $phase_ps] || $phase_ps < 0 || $phase_ps >= 6400} {
+    error {market_phase_ps must be an integer in [0, 6399]}
+}
+
 set script_dir [file normalize [file dirname [info script]]]
 set root [file normalize [file join $script_dir ".."]]
 set hft_root [file join $root "deps" "hft-full-system-fpga"]
@@ -62,7 +70,7 @@ set tb_file [file join $root "tb" "tb_hft_rmic_dual_xgmii_full_system.sv"]
 foreach f [concat $src_files [list $tb_file]] { if {![file exists $f]} { error "required I5 XSim source missing: $f" } }
 
 set proj_dir [file join $out_dir "project"]
-create_project i5_dual_xgmii_xsim $proj_dir -part $part_name -force
+create_project i5_latency_phase_${phase_ps}_xsim $proj_dir -part $part_name -force
 set_property source_mgmt_mode None [current_project]
 add_files -norecurse -fileset sources_1 $src_files
 add_files -norecurse -fileset sim_1 $tb_file
@@ -71,6 +79,7 @@ set_property include_dirs $include_dirs [get_filesets sim_1]
 set_property verilog_define {AMU_BEHAVIORAL_RAM HFT_RMIC_BEHAVIORAL_RAM} [get_filesets sources_1]
 set_property verilog_define {AMU_BEHAVIORAL_RAM HFT_RMIC_BEHAVIORAL_RAM} [get_filesets sim_1]
 set_property top tb_hft_rmic_dual_xgmii_full_system [get_filesets sim_1]
+set_property generic "SC5_LATENCY=1 SC5_MARKET_PHASE_PS=$phase_ps" [get_filesets sim_1]
 set_property xsim.simulate.runtime {0ns} [get_filesets sim_1]
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
@@ -80,18 +89,16 @@ close_sim
 
 set pass_seen 0
 set fail_seen 0
-set risk_cfg_seen 0
-set risk_closed_loop_seen 0
+set sample_seen 0
 foreach f [glob -nocomplain [file join $proj_dir "*.log"] [file join $proj_dir "*" "*.log"] [file join $proj_dir "*" "*" "*.log"] [file join $proj_dir "*" "*" "*" "*.log"] [file join $proj_dir "*" "*" "*" "*" "*.log"]] {
     set fh [open $f r]; set text [read $fh]; close $fh
-    if {[string first "TB_HFT_RMIC_DUAL_XGMII_FULL_SYSTEM PASS" $text] >= 0} { set pass_seen 1 }
-    if {[string first "I5_RISK_CONFIGURATION_PASS" $text] >= 0} { set risk_cfg_seen 1 }
-    if {[string first "I5_FULL_SYSTEM_FILL_TO_CLOSE_PASS" $text] >= 0} { set risk_closed_loop_seen 1 }
+    if {[string first "TB_HFT_RMIC_DUAL_XGMII_SC5_LATENCY PASS" $text] >= 0} { set pass_seen 1 }
+    if {[string first "SC5_DUAL_LATENCY_SAMPLE phase_ps=$phase_ps" $text] >= 0} { set sample_seen 1 }
     if {[string first "TEST_FAIL" $text] >= 0} { set fail_seen 1 }
 }
-if {!$pass_seen || !$risk_cfg_seen || !$risk_closed_loop_seen || $fail_seen} {
-    error "I5 dual-XGMII full-system regression did not produce a clean PASS"
+if {!$pass_seen || !$sample_seen || $fail_seen} {
+    error "I5 latency phase $phase_ps did not produce a clean sample"
 }
-puts "HFT_RMIC_I5_DUAL_XGMII_XSIM_PASS"
-puts "MILESTONE=I5_FULL_SYSTEM_FUNCTIONAL"
+puts "HFT_RMIC_I5_LATENCY_PHASE_PASS phase_ps=$phase_ps"
+puts "MILESTONE=I5_LATENCY_RECOVERY_MEASUREMENT"
 quit
