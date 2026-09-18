@@ -233,6 +233,21 @@ The HFT_RMIC AMU CI stub and all order-store setup tests must reproduce this con
 **Claim limit:** I4 does not establish the full dual-XGMII top timing or market-packet-to-wire latency. It also does not establish board/QSFP latency, TAIFEX SPAN, live-exchange interoperability, or exchange conformance. I5 must integrate this closed boundary into the pinned full-system hierarchy and remeasure the combined top.
 
 ---
+## D-20260918-17 — Key committed execution metadata and queue exchange events before serialized risk
+
+**Status:** Adopted for I5 full-system integration.
+
+**Decision:** Futures-only R02/R32 metadata is captured from both the live TMP stream and the frozen replay stream, then matched to the frozen report-sequence owner's committed event by `msg_type + order_id + report_seq`. A committed R02/R32 may reach RM state mutation only when that identity match succeeds. R03 does not require raw PositionEffect/before_qty because the stored order context is authoritative for release semantics.
+
+The frozen report owner emits committed events as pulses, while the I4 shared risk core can be temporarily busy with CL admission. I5 therefore inserts a committed-execution FIFO between the frozen committed event and the serialized shared risk core. FIFO overflow is sticky, blocks new admission through recovery-required, and may only be cleared as part of explicit recovery/state reconstruction; exchange events must never be silently dropped.
+
+**Why:** Time-coincidence between raw decoder output and later replay commit is not a safe metadata contract, and direct pulse-to-ready/valid wiring can lose an execution when CL owns the risk transaction. Keyed alignment preserves frozen replay/de-dup authority; buffering preserves event delivery across short-lived RM backpressure.
+
+**Evidence:** `rtl/adapters/hft_tmp_exec_metadata_tap_v2.sv`; `rtl/integration/hft_rmic_committed_exec_event_adapter_v1.sv`; `rtl/integration/hft_rmic_exec_commit_fifo_v1.sv`; associated I5 self-checking regressions; `rtl/integration/hft_rmic_rx_order_book_top_v1.sv`; `rtl/integration/hft_rmic_round_chip_app_top_v1.sv`.
+
+**Claim limit:** Current evidence is unit/integration-source level until the pinned private HFT/RMIC sources are compiled in local full-system XSim and real-XPM U50 OOC. Queue depth 8 is a correctness buffer, not a throughput proof or exchange burst guarantee.
+
+---
 ## Decision format for future entries
 
 Each new decision should record:
