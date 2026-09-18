@@ -81,3 +81,58 @@ The latency-recovery candidate has passed functional and physical closure and is
 It is **not yet proven** that the intended 6.4 ns market-to-R01 latency recovery is realized across asynchronous market/trading clock phase. The next acceptance gate is a five-phase SC5 sweep at 0/1280/2560/3840/5120 ps using `scripts/run_i5_latency_phase_sweep.ps1`.
 
 Promotion should occur only after that sweep is reviewed against the timing-safe baseline and the pinned-HFT latency reference.
+
+
+## Five-phase latency recertification
+
+Exact-head measurement package:
+`HFT_RMIC_i5_latency_phase_sweep_20260919-040931.zip`
+
+Manifest:
+
+- commit: `768296ed28b12c0d14e1fc4f8d115a94bad0e8ca`
+- branch: `codex/i5-latency-recovery`
+- HFT pin: `50217fad1fd580f8c451ba893f9035f4be1dc21a`
+- RMIC pin: `de6c300f4f18b18296f013287ab0eca70d3abb72`
+- clean worktree
+- all five SC5 phases PASS
+
+Measured market-XGMII START -> trading-XGMII R01 START:
+
+| Phase | Internal latency | Conservative cycles | CDC commit delta |
+| ---: | ---: | ---: | ---: |
+| 0 ps | 275.200 ns | 43 | 57.600 ns |
+| 1280 ps | 273.920 ns | 43 | 56.320 ns |
+| 2560 ps | 272.640 ns | 43 | 55.040 ns |
+| 3840 ps | 271.360 ns | 43 | 53.760 ns |
+| 5120 ps | 270.080 ns | 43 | 52.480 ns |
+
+Summary:
+
+- min: **270.080 ns**
+- max: **275.200 ns**
+- conservative max: **43 cycles**
+- phase jitter: **5.120 ns**
+- application first-valid -> trading XGMII START: **6.400 ns** for every phase
+
+The pinned HFT reference at the same boundary is 31 cycles, 193.280-198.400 ns, with the same 5.120 ns phase jitter. Therefore the integrated I5 path adds a deterministic **76.800 ns / 12 cycles** across every sampled phase.
+
+This is a useful decomposition result:
+
+- asynchronous CDC behavior is unchanged in shape; the phase jitter remains exactly 5.120 ns;
+- the application-valid -> XGMII START path remains one 6.4-ns cycle;
+- all 12 added cycles are therefore upstream of application first-valid and downstream of the frozen speculative market decision, i.e. in the risk-admission/handoff portion of the integrated path.
+
+The SC5 log also shows the speculative shadow-decision marker exactly one cycle before the pinned-HFT reference XGMII-start point would occur. On I5, shadow decision -> application first-valid is 76.800 ns and shadow decision -> trading XGMII START is 83.200 ns. The original frozen HFT path reaches trading XGMII START 6.400 ns after that decision boundary. The difference is again exactly 76.800 ns / 12 cycles.
+
+Note: the sweep runner's fields named `MarketToPrebuildNs`, `PrebuildToAppNs` and `PrebuildToStartNs` were derived from the `shadow_decision_ns` marker, not `prebuild_accept_ns`. The raw sample data is authoritative; future runner output should use explicit `shadow_*` names.
+
+## Next latency target
+
+The one-cycle I5 risk-ingress slice has been successfully removed without losing 156.25-MHz post-route closure, but the remaining atomic admission sequence is still serialized:
+
+`order capture -> futures RESERVE -> AMU INSERT -> accepted R01`
+
+The next optimization target is therefore the transaction protocol itself, not another routing tweak. A safe candidate is to issue futures RESERVE and order-context INSERT in parallel while the shared CL owner lock prevents EX from observing either speculative mutation. Acceptance remains gated on both responses; if exactly one side succeeds, the successful side is rolled back before returning a reject. This can reduce the success path from the sum of state-manager and AMU latencies toward their maximum while preserving fail-closed atomicity.
+
+That optimization must be developed on a new stacked branch so this 43-cycle, timing-clean candidate remains an intact fallback.
