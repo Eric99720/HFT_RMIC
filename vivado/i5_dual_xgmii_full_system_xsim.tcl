@@ -77,13 +77,15 @@ close_sim
 set pass_seen 0
 set fail_seen 0
 set risk_cfg_seen 0
+set risk_closed_loop_seen 0
 foreach f [glob -nocomplain [file join $proj_dir "*.log"] [file join $proj_dir "*" "*.log"] [file join $proj_dir "*" "*" "*.log"] [file join $proj_dir "*" "*" "*" "*.log"] [file join $proj_dir "*" "*" "*" "*" "*.log"]] {
     set fh [open $f r]; set text [read $fh]; close $fh
     if {[string first "TB_HFT_RMIC_DUAL_XGMII_FULL_SYSTEM PASS" $text] >= 0} { set pass_seen 1 }
     if {[string first "I5_RISK_CONFIGURATION_PASS" $text] >= 0} { set risk_cfg_seen 1 }
+    if {[string first "I5_FULL_SYSTEM_FILL_TO_CLOSE_PASS" $text] >= 0} { set risk_closed_loop_seen 1 }
     if {[string first "TEST_FAIL" $text] >= 0} { set fail_seen 1 }
 }
-if {!$pass_seen || !$risk_cfg_seen || $fail_seen} {
+if {!$pass_seen || !$risk_cfg_seen || !$risk_closed_loop_seen || $fail_seen} {
     error "I5 dual-XGMII full-system regression did not produce a clean PASS"
 }
 puts "HFT_RMIC_I5_DUAL_XGMII_XSIM_PASS"
