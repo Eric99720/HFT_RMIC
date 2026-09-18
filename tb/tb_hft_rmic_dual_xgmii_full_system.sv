@@ -1289,6 +1289,37 @@ module tb_hft_rmic_dual_xgmii_full_system #(
         end
     endtask
 
+    task automatic set_sell_close_market_and_r01;
+        int i;
+        reg [7:0] market_xor;
+        reg [15:0] r01_sum;
+        begin
+            // Force a clean SELL-only strategy condition:
+            // bid=1040 > close(1020)+threshold(10), ask=1050 prevents BUY.
+            market_payload[51] = 8'h10;
+            market_payload[52] = 8'h40;
+            market_payload[63] = 8'h10;
+            market_payload[64] = 8'h50;
+            market_xor = 8'h00;
+            for (i = 1; i < 70; i = i + 1)
+                market_xor = market_xor ^ market_payload[i];
+            market_payload[70] = market_xor;
+
+            // Second order from a fresh scenario uses order-id 2, SELL side,
+            // price 1040 and PositionEffect CLOSE.
+            r01_expected[27]=8'h00; r01_expected[28]=8'h00;
+            r01_expected[29]=8'h00; r01_expected[30]=8'h02;
+            r01_expected[60]=8'h00; r01_expected[61]=8'h00;
+            r01_expected[62]=8'h04; r01_expected[63]=8'h10;
+            r01_expected[71]=8'h02;
+            r01_expected[74]=8'h43;
+            r01_sum = 16'd0;
+            for (i = 0; i < 79; i = i + 1)
+                r01_sum = r01_sum + r01_expected[i];
+            r01_expected[79] = r01_sum[7:0];
+        end
+    endtask
+
     task automatic set_market_payload;
         int i;
         begin
@@ -1352,6 +1383,146 @@ module tb_hft_rmic_dual_xgmii_full_system #(
         end
     endtask
 
+    task automatic set_r02_full_fill_payload;
+        begin
+            clear_bytes(r02_fill_payload);
+            r02_fill_len = 133;
+            r02_fill_payload[0] = 8'h00;
+            r02_fill_payload[1] = 8'h82;
+            r02_fill_payload[2] = 8'h00;
+            r02_fill_payload[3] = 8'h00;
+            r02_fill_payload[4] = 8'h00;
+            r02_fill_payload[5] = 8'h02;
+            r02_fill_payload[6] = 8'h01;
+            r02_fill_payload[7] = 8'h02;
+            r02_fill_payload[8] = 8'h03;
+            r02_fill_payload[9] = 8'h04;
+            r02_fill_payload[10] = 8'h00;
+            r02_fill_payload[11] = 8'h5a;
+            r02_fill_payload[12] = 8'h66;
+            r02_fill_payload[13] = 8'h12;
+            r02_fill_payload[14] = 8'h34;
+            r02_fill_payload[15] = 8'h00;
+            r02_fill_payload[16] = 8'h01;
+            r02_fill_payload[17] = 8'h00;
+            r02_fill_payload[18] = 8'h46;
+            r02_fill_payload[19] = 8'h56;
+            r02_fill_payload[20] = 8'h78;
+            r02_fill_payload[21] = 8'h12;
+            r02_fill_payload[22] = 8'h34;
+            r02_fill_payload[23] = 8'h41;
+            r02_fill_payload[24] = 8'h30;
+            r02_fill_payload[25] = 8'h30;
+            r02_fill_payload[26] = 8'h30;
+            r02_fill_payload[27] = 8'h31;
+            r02_fill_payload[28] = 8'h00;
+            r02_fill_payload[29] = 8'h00;
+            r02_fill_payload[30] = 8'h00;
+            r02_fill_payload[31] = 8'h01;
+            r02_fill_payload[32] = 8'h55;
+            r02_fill_payload[33] = 8'h53;
+            r02_fill_payload[34] = 8'h52;
+            r02_fill_payload[35] = 8'h44;
+            r02_fill_payload[36] = 8'h45;
+            r02_fill_payload[37] = 8'h46;
+            r02_fill_payload[38] = 8'h30;
+            r02_fill_payload[39] = 8'h31;
+            r02_fill_payload[40] = 8'h02;
+            r02_fill_payload[41] = 8'h54;
+            r02_fill_payload[42] = 8'h58;
+            r02_fill_payload[43] = 8'h46;
+            r02_fill_payload[44] = 8'h32;
+            r02_fill_payload[45] = 8'h30;
+            r02_fill_payload[46] = 8'h32;
+            r02_fill_payload[47] = 8'h36;
+            r02_fill_payload[48] = 8'h30;
+            r02_fill_payload[49] = 8'h36;
+            r02_fill_payload[50] = 8'h20;
+            r02_fill_payload[51] = 8'h20;
+            r02_fill_payload[52] = 8'h20;
+            r02_fill_payload[53] = 8'h20;
+            r02_fill_payload[54] = 8'h20;
+            r02_fill_payload[55] = 8'h20;
+            r02_fill_payload[56] = 8'h20;
+            r02_fill_payload[57] = 8'h20;
+            r02_fill_payload[58] = 8'h20;
+            r02_fill_payload[59] = 8'h20;
+            r02_fill_payload[60] = 8'h20;
+            r02_fill_payload[61] = 8'h00;
+            r02_fill_payload[62] = 8'h00;
+            r02_fill_payload[63] = 8'h03;
+            r02_fill_payload[64] = 8'hed;
+            r02_fill_payload[65] = 8'h00;
+            r02_fill_payload[66] = 8'h01;
+            r02_fill_payload[67] = 8'h00;
+            r02_fill_payload[68] = 8'h12;
+            r02_fill_payload[69] = 8'hd6;
+            r02_fill_payload[70] = 8'h87;
+            r02_fill_payload[71] = 8'h30;
+            r02_fill_payload[72] = 8'h01;
+            r02_fill_payload[73] = 8'h02;
+            r02_fill_payload[74] = 8'h00;
+            r02_fill_payload[75] = 8'h4f;
+            r02_fill_payload[76] = 8'h00;
+            r02_fill_payload[77] = 8'h00;
+            r02_fill_payload[78] = 8'h03;
+            r02_fill_payload[79] = 8'hed;
+            r02_fill_payload[80] = 8'h00;
+            r02_fill_payload[81] = 8'h01;
+            r02_fill_payload[82] = 8'h00;
+            r02_fill_payload[83] = 8'h00;
+            r02_fill_payload[84] = 8'h00;
+            r02_fill_payload[85] = 8'h00;
+            r02_fill_payload[86] = 8'h00;
+            r02_fill_payload[87] = 8'h00;
+            r02_fill_payload[88] = 8'h00;
+            r02_fill_payload[89] = 8'h00;
+            r02_fill_payload[90] = 8'h00;
+            r02_fill_payload[91] = 8'h00;
+            r02_fill_payload[92] = 8'h00;
+            r02_fill_payload[93] = 8'h00;
+            r02_fill_payload[94] = 8'h00;
+            r02_fill_payload[95] = 8'h01;
+            r02_fill_payload[96] = 8'h00;
+            r02_fill_payload[97] = 8'h00;
+            r02_fill_payload[98] = 8'h00;
+            r02_fill_payload[99] = 8'h00;
+            r02_fill_payload[100] = 8'h00;
+            r02_fill_payload[101] = 8'h00;
+            r02_fill_payload[102] = 8'h00;
+            r02_fill_payload[103] = 8'h00;
+            r02_fill_payload[104] = 8'h00;
+            r02_fill_payload[105] = 8'h00;
+            r02_fill_payload[106] = 8'h00;
+            r02_fill_payload[107] = 8'h00;
+            r02_fill_payload[108] = 8'h00;
+            r02_fill_payload[109] = 8'h00;
+            r02_fill_payload[110] = 8'h00;
+            r02_fill_payload[111] = 8'h00;
+            r02_fill_payload[112] = 8'h00;
+            r02_fill_payload[113] = 8'h00;
+            r02_fill_payload[114] = 8'h00;
+            r02_fill_payload[115] = 8'h00;
+            r02_fill_payload[116] = 8'h01;
+            r02_fill_payload[117] = 8'h02;
+            r02_fill_payload[118] = 8'h03;
+            r02_fill_payload[119] = 8'h04;
+            r02_fill_payload[120] = 8'h00;
+            r02_fill_payload[121] = 8'h5a;
+            r02_fill_payload[122] = 8'h04;
+            r02_fill_payload[123] = 8'hab;
+            r02_fill_payload[124] = 8'hcd;
+            r02_fill_payload[125] = 8'hef;
+            r02_fill_payload[126] = 8'h01;
+            r02_fill_payload[127] = 8'h00;
+            r02_fill_payload[128] = 8'h00;
+            r02_fill_payload[129] = 8'h00;
+            r02_fill_payload[130] = 8'h01;
+            r02_fill_payload[131] = 8'h01;
+            r02_fill_payload[132] = 8'h46;
+        end
+    endtask
+
     task automatic set_all_payloads;
         begin
             clear_bytes(empty_payload);
@@ -1369,6 +1540,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             set_l42_expected();
             set_market_payload();
             set_r01_expected();
+            set_r02_full_fill_payload();
         end
     endtask
 
