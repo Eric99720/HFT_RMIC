@@ -40,9 +40,9 @@ module tb_hft_tmp_exec_metadata_tap_v2;
         beat(0,0,0,0,0,0,8'h12,8'h34,0); // beat11 before
         zeros(3); // beats12..14
         beat(0,0,0,0,0,0,0,8'h89,0); // beat15 seq high
-        beat(8'hab,8'hcd,8'hef,0,0,0,0,0,0); // beat16 seq low
-        beat(0,0,0,0,0,0,0,0,1); // beat17 last
-        if(!metadata_valid) fail("R02 metadata_valid missing");
+        // Exact full-system framing: R02 ends on the beat carrying seq low.
+        beat(8'hab,8'hcd,8'hef,0,0,0,0,0,1); // beat16 seq low + last
+        if(!metadata_valid) fail("R02 metadata_valid missing on terminal seq beat");
         if(last_msg_type!==`HFT_RMIC_TAIFEX_MSG_R02 || last_order_id!==32'h11223344 ||
            last_report_seq!==32'h89abcdef || last_position_effect!==8'h4f || last_before_qty!==16'h1234)
             fail("R02 metadata mismatch");
@@ -58,9 +58,9 @@ module tb_hft_tmp_exec_metadata_tap_v2;
         zeros(2); // beats12..13
         beat(0,0,8'h56,8'h78,0,0,0,0,0); // beat14 before
         zeros(3); // beats15..17
-        beat(0,0,0,8'h10,8'h20,8'h30,8'h40,0,0); // beat18 seq
-        beat(0,0,0,0,0,0,0,0,1); // beat19 last
-        if(!metadata_valid) fail("R32 metadata_valid missing");
+        // Cover the same terminal-beat rule for R32 as well.
+        beat(0,0,0,8'h10,8'h20,8'h30,8'h40,0,1); // beat18 seq + last
+        if(!metadata_valid) fail("R32 metadata_valid missing on terminal seq beat");
         if(last_msg_type!==`HFT_RMIC_TAIFEX_MSG_R32 || last_order_id!==32'ha1b2c3d4 ||
            last_report_seq!==32'h10203040 || last_position_effect!==8'h43 || last_before_qty!==16'h5678)
             fail("R32 metadata mismatch");

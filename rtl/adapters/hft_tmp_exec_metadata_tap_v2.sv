@@ -46,6 +46,21 @@ module hft_tmp_exec_metadata_tap_v2 #(
 
     wire unused_keep = ^tap_keep;
 
+    // In the real frozen TMP stream, R02/R32 may assert tap_last on the
+    // same beat that carries the final report-sequence bytes.  Nonblocking
+    // assignments below do not make report_seq_seen/report_seq visible until
+    // after this clock edge, so terminal-beat completion must be recognized
+    // explicitly from the current beat.
+    wire r02_report_seq_this_beat =
+        (msg_type == `HFT_RMIC_TAIFEX_MSG_R02) && (beat_index == 8'd16);
+    wire r32_report_seq_this_beat =
+        (msg_type == `HFT_RMIC_TAIFEX_MSG_R32) && (beat_index == 8'd18);
+    wire report_seq_complete_now =
+        report_seq_seen || r02_report_seq_this_beat || r32_report_seq_this_beat;
+    wire [31:0] report_seq_value_now = r02_report_seq_this_beat ?
+        {report_seq[31:24], d0, d1, d2} :
+        (r32_report_seq_this_beat ? {d3, d4, d5, d6} : report_seq);
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             active <= 1'b0;
@@ -130,12 +145,12 @@ module hft_tmp_exec_metadata_tap_v2 #(
                 if (tap_last) begin
                     if (((msg_type == `HFT_RMIC_TAIFEX_MSG_R02) ||
                          (msg_type == `HFT_RMIC_TAIFEX_MSG_R32)) &&
-                        order_id_seen && report_seq_seen &&
+                        order_id_seen && report_seq_complete_now &&
                         position_effect_seen && before_qty_seen) begin
                         metadata_valid <= 1'b1;
                         last_msg_type <= msg_type;
                         last_order_id <= order_id;
-                        last_report_seq <= report_seq;
+                        last_report_seq <= report_seq_value_now;
                         last_position_effect <= position_effect;
                         last_before_qty <= before_qty;
                     end
