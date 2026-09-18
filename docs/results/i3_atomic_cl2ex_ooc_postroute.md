@@ -25,6 +25,28 @@ xcu50-fsvh2104-2-e
 156.25 MHz / 6.400 ns
 ```
 
+## Post-I3 functional-contract erratum
+
+The physical implementation numbers in this document remain valid, but I4 frozen-encoder XSim later exposed a functional contract mismatch that the original I3 CI stub had hidden.
+
+The real frozen RMIC AMU defines successful **new-key INSERT** as:
+
+```text
+rsp_ok     = 1
+rsp_found  = 0
+rsp_status = OK
+```
+
+`rsp_found=1` on INSERT instead denotes that an existing key was found (duplicate / `EXISTS`). The original integration CI stub incorrectly returned `found=1` for a successful new INSERT, and the original I3 admission controller incorrectly required `rsp_found=1` for INSERT success. Consequently, I3's routed design was physically valid but its actual-AMU INSERT success predicate was not functionally correct.
+
+The mismatch was discovered in I4 by running the real pinned AMU together with the frozen R01 encoder: the baseline encoder emitted all 80 bytes while the integrated path rolled back and rejected the order. I4 corrects the controller to accept `rsp_ok && status==OK` for INSERT, corrects the CI stub and order-store/execution tests to the frozen AMU response contract, and re-runs the full regression stack.
+
+Therefore:
+
+- the I3 timing, utilization, routing, DRC and power results below remain valid physical evidence;
+- the original statement that exact-head I3 CI plus OOC alone closed the **real-AMU functional INSERT contract** is superseded by the I4 correction/evidence;
+- no frozen RMIC RTL was modified.
+
 ## Timing
 
 | Stage | WNS | TNS |
@@ -83,7 +105,7 @@ Confidence           Medium
 
 This is an implementation estimate, not board-measured power.
 
-## I3 acceptance
+## I3 physical acceptance
 
 I3 physical acceptance is satisfied:
 
@@ -95,7 +117,7 @@ I3 physical acceptance is satisfied:
 - zero routing errors;
 - utilization, critical path, DRC and power reviewed.
 
-Together with exact-head CI, this closes I3 atomic CL2EX admission at the OOC evidence level.
+The later I4 erratum above narrows the original functional claim; I3 remains valid as physical/OOC evidence for this composition.
 
 ## Claim boundary
 

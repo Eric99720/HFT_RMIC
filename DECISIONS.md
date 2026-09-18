@@ -140,7 +140,7 @@ auto_release = before_qty - LastQty - LeavesQty
 
 ## D-20260917-11 — CL2EX admission is an atomic reserve-plus-context transaction
 
-**Status:** Adopted.
+**Status:** Adopted, with AMU response semantics clarified by D-20260918-14.
 
 **Decision:** A policy-approved HFT order is not accepted until both the futures-state RESERVE and the outstanding-order AMU INSERT succeed. The ordering is RESERVE first, then INSERT. If INSERT fails because the key exists, the table is full, or another store error occurs, the controller must issue an exact RELEASE rollback before returning the reject. If rollback itself fails, the order remains rejected and the result is escalated to `ADMISSION_ROLLBACK_FAILED`; explicit recovery is required.
 
@@ -158,7 +158,7 @@ The original frozen-HFT 256-bit payload is carried alongside the transaction and
 
 ## D-20260917-12 — Close I3 atomic CL2EX admission at the U50 OOC evidence layer
 
-**Status:** Adopted.
+**Status:** Physical/OOC closure remains adopted; original actual-AMU functional-closure wording is narrowed by D-20260918-14.
 
 **Decision:** Accept the I3 frozen-HFT mapping/policy + futures RESERVE/rollback + real pinned RMIC AMU INSERT composition as physically closed at 156.25 MHz. Preserve the I3 architecture for the next full-datapath insertion phase rather than reworking mapping or admission for additional timing margin.
 
@@ -166,10 +166,73 @@ The original frozen-HFT 256-bit payload is carried alongside the transaction and
 
 **Evidence:** `docs/results/i3_atomic_cl2ex_ooc_postroute.md`; I3 atomic/order-gate/fault-injection regressions; packaged Vivado I3 OOC reports.
 
-**Claim limit:** This closes the atomic CL2EX gate as an OOC subsystem only. It does not establish end-to-end HFT R01 behavior, full-system timing, board packet latency, TAIFEX SPAN, or exchange conformance.
+**Claim limit:** The physical timing/resource result is valid. D-20260918-14 records a later-discovered actual-AMU INSERT response contract mismatch that the original CI stub hid; real-AMU functional admission closure is therefore established only after that correction is exercised in I4.
 
 ---
 
+## D-20260918-13 — Gate both frozen R01 producers and serialize CL/EX ownership of shared risk state
+
+**Status:** Adopted for I4 correctness closure.
+
+**Decision:** The ordinary frozen-HFT bridge order stream and the R01-prebuild stream must merge before risk; neither producer may feed the frozen R01 encoder without first completing the same I3 atomic admission transaction. Preserve the frozen source preference by giving prebuild priority at this merge.
+
+CL admission and committed execution reconciliation share exactly one futures-state manager and one AMU order-context store. Arbitration is at the transaction boundary, not per memory operation: when no owner is active, a committed execution and new order arriving together select committed execution; the selected owner retains both state/store resources until its result is consumed. The non-owner remains backpressured throughout that transaction.
+
+**Why:** The pinned XGMII-oriented HFT baseline enables `ENABLE_R01_PREBUILD=1`; intercepting only `bridge_strategy_order_data` would leave a real risk-control bypass. Separately, interleaving CL and EX operations on the same state/store can create lookup/update races and contradictory account mutations. Transaction-level ownership reuses the already-verified exclusive-client FSMs without modifying frozen upstreams and gives deterministic correctness before throughput optimization.
+
+**Alternatives considered:** gate only the ordinary bridge path; gate after R01 formatting; per-request arbitration between CL and EX; duplicate futures state/store instances; optimistic parallel CL/EX mutation. These are rejected because they respectively allow prebuild bypass, move risk too late, permit multi-step transaction interleaving, create multiple mutable sources of truth, or require a more complex recovery protocol.
+
+**Evidence:** `rtl/integration/hft_rmic_dual_order_source_v1.sv`; `rtl/integration/hft_rmic_shared_core_v1.sv`; `rtl/integration/hft_rmic_r01_path_v1.sv`; `tb/tb_hft_rmic_shared_core_v1.sv`; `tb/tb_hft_rmic_r01_path_stub_v1.sv`; PR #3 CI.
+
+**Claim limit:** The I4 owner lock is correctness-first serialization and does not claim CL2EX/EX2CL concurrency or II=1. Exact frozen R01 byte parity and the real-AMU U50 risk-to-R01 physical composition remain separate local gates until their packaged evidence is reviewed.
+
+---
+
+## D-20260918-14 — Bind integration tests to the frozen AMU response contract
+
+**Status:** Adopted; clarifies D-20260917-11 and narrows the functional portion of D-20260917-12.
+
+**Decision:** Treat the pinned RMIC AMU's operation-specific `rsp_found` meaning as authoritative. A successful INSERT of a new key is `rsp_ok=1`, `rsp_status=OK`, `rsp_found=0`; INSERT with an existing key reports `rsp_ok=0`, `rsp_status=EXISTS`, `rsp_found=1`. LOOKUP/UPDATE/DELETE success reports `found=1`. CL2EX admission therefore accepts INSERT on `rsp_ok && status==OK` and must not require `found=1`.
+
+The HFT_RMIC AMU CI stub and all order-store setup tests must reproduce this contract. UPDATE response payload is not used as the source of the newly written context; a subsequent LOOKUP verifies the new value.
+
+**Why:** I4 real pinned-AMU/frozen-encoder XSim produced 80 baseline R01 bytes but zero integrated bytes with a held risk reject. Source audit showed the frozen AMU intentionally leaves `found=0` on a new INSERT, while the integration stub had incorrectly returned `found=1` and the admission controller required it. The mismatch caused every real-AMU new INSERT to be rolled back and rejected even though synthesis/place/route were healthy.
+
+**Evidence:** pinned `deps/RMIC/rtl/amu_banked_double_hash_v2.sv`; uploaded `HFT_RMIC_i4_r01_parity_xsim_20260918-024121.zip`; corrected `rtl/integration/hft_rmic_cl2ex_admission_v1.sv`; corrected `tb/stubs/amu_banked_double_hash_v2_stub.sv`; corrected order-context/execution regressions; exact-head CI after the correction.
+
+**Claim correction:** I3's reported WNS/TNS/resource/power/routing evidence remains valid. Its original CI did not prove the real-AMU new-INSERT functional response contract because the stub encoded different semantics. Real-AMU functional admission evidence must come from I4 parity/combined tests after this correction.
+
+---
+
+## D-20260918-15 — Preserve frozen R01 bytes across the focused risk boundary
+
+**Status:** Adopted; closes I4-03 functional byte parity.
+
+**Decision:** Keep the frozen HFT 256-bit order payload immutable across risk admission and feed the accepted original payload into the pinned frozen `financial_protocol_encoder`. Both the ordinary bridge producer and the R01-prebuild producer are covered by this same rule. Risk rejection must emit no R01 traffic.
+
+**Why:** The corrected local Vivado/XSim A/B test instantiates a direct frozen-encoder baseline and a risk-integrated frozen encoder with identical R01 metadata. Both accepted producer classes produce complete 80-byte payloads that are bit-for-bit identical to the direct baseline, while a kill-switch reject produces zero integrated R01 bytes. This closes the protocol-byte-preservation question without changing the frozen encoder.
+
+**Evidence:** `docs/results/i4_r01_byte_parity_xsim.md`; package `HFT_RMIC_i4_r01_parity_xsim_20260918-125059.zip`; integration commit `8c8733e57f70eb752d55ddbecae8ec6018ecb614`.
+
+**Verification boundary:** XSim uses behavioral synchronous-memory fallbacks for AMU bank storage and futures-state RAM. This decision establishes functional R01 byte parity, not physical BRAM mapping, routed timing, board packet behavior, or packet latency. I4-04 remains the real-XPM U50 physical gate.
+
+---
+
+## D-20260918-16 — Close the focused risk-to-frozen-R01 boundary on U50
+
+**Status:** Adopted; closes I4.
+
+**Decision:** Accept the focused HFT order-data → futures risk → pinned frozen R01 encoder composition as closed at both functional-byte and physical-OOC evidence layers. Preserve the I4 architecture as the insertion boundary for I5 rather than reopening the encoder/risk contract.
+
+**Why:** Corrected XSim proves exact 80-byte R01 parity for ordinary and prebuild accepted orders and zero integrated R01 bytes on kill-switch reject. The real-XPM U50 OOC composition fully routes at 156.25 MHz / 6.400 ns with synth WNS `+2.310 ns`, placed WNS `+0.966 ns`, routed WNS `+0.827 ns`, TNS `0`, and zero routing errors. The routed worst path remains inside the frozen AMU rather than policy, dual-source arbitration, shared CL/EX ownership or frozen encoder logic.
+
+**Resources:** 5,596 LUT, 4,454 FF, 128 LUTRAM, 19 RAMB36, 1 RAMB18 and 10 DSP. Vectorless Vivado estimate is 2.365 W total on-chip power.
+
+**Evidence:** `docs/results/i4_r01_byte_parity_xsim.md`; `docs/results/i4_r01_path_ooc_postroute.md`; packages `HFT_RMIC_i4_r01_parity_xsim_20260918-125059.zip` and `HFT_RMIC_i4_r01_path_ooc_impl_20260918-134618.zip`.
+
+**Claim limit:** I4 does not establish the full dual-XGMII top timing or market-packet-to-wire latency. It also does not establish board/QSFP latency, TAIFEX SPAN, live-exchange interoperability, or exchange conformance. I5 must integrate this closed boundary into the pinned full-system hierarchy and remeasure the combined top.
+
+---
 ## Decision format for future entries
 
 Each new decision should record:

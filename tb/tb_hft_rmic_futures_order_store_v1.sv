@@ -100,6 +100,16 @@ module tb_hft_rmic_futures_order_store_v1;
         end
     endtask
 
+    task expect_insert_ok;
+        begin
+            // Frozen AMU new-key INSERT: ok=1/status=OK/found=0.  Payload is
+            // not returned by the INSERT response; verify it with LOOKUP.
+            if(!rsp_ok || rsp_status!==ST_OK || rsp_found)
+                fail("new insert response contract mismatch");
+            ack_rsp();
+        end
+    endtask
+
     task expect_found;
         input exp_ok;
         input [2:0] exp_status;
@@ -134,22 +144,18 @@ module tb_hft_rmic_futures_order_store_v1;
         @(negedge clk); rst_n=1;
         while(!init_done) @(posedge clk);
 
-        // IDs 5 and 69 are a historical direct-map collision pair.  The CI
-        // stub only checks wrapper semantics; actual collision behavior remains
-        // the frozen AMU's upstream responsibility and is re-used in Vivado.
+        // IDs 5 and 69 are a historical direct-map collision pair. The CI stub
+        // verifies the wrapper contract; actual collision behavior remains the
+        // frozen AMU's responsibility and is exercised by local pinned-AMU runs.
         send_req(OP_INSERT,32'd5,8'd1,8'd2,`HFT_RMIC_RMIC_SIDE_BUY,
                  `HFT_RMIC_TAIFEX_POS_OPEN,`HFT_RMIC_TAIFEX_ORD_LIMIT,
                  `HFT_RMIC_TAIFEX_TIF_ROD,32'd20000,16'd10);
-        expect_found(1,ST_OK,1,2,`HFT_RMIC_RMIC_SIDE_BUY,
-                     `HFT_RMIC_TAIFEX_POS_OPEN,`HFT_RMIC_TAIFEX_ORD_LIMIT,
-                     `HFT_RMIC_TAIFEX_TIF_ROD,20000,10);
+        expect_insert_ok();
 
         send_req(OP_INSERT,32'd69,8'd3,8'd1,`HFT_RMIC_RMIC_SIDE_SELL,
                  `HFT_RMIC_TAIFEX_POS_CLOSE,`HFT_RMIC_TAIFEX_ORD_LIMIT,
                  `HFT_RMIC_TAIFEX_TIF_IOC,32'd19950,16'd4);
-        expect_found(1,ST_OK,3,1,`HFT_RMIC_RMIC_SIDE_SELL,
-                     `HFT_RMIC_TAIFEX_POS_CLOSE,`HFT_RMIC_TAIFEX_ORD_LIMIT,
-                     `HFT_RMIC_TAIFEX_TIF_IOC,19950,4);
+        expect_insert_ok();
 
         send_req(OP_LOOKUP,32'd5,0,0,0,0,0,0,0,0);
         expect_found(1,ST_OK,1,2,`HFT_RMIC_RMIC_SIDE_BUY,
@@ -161,20 +167,19 @@ module tb_hft_rmic_futures_order_store_v1;
                      `HFT_RMIC_TAIFEX_TIF_IOC,19950,4);
         $display("HFT_RMIC_FUTURES_ORDER_CONTEXT_PACKING_PASS");
 
-        // Update only the remaining quantity after a partial fill.
+        // UPDATE success returns the previous matched value in the frozen AMU;
+        // the new payload is verified by the following LOOKUP instead.
         send_req(OP_UPDATE,32'd5,8'd1,8'd2,`HFT_RMIC_RMIC_SIDE_BUY,
                  `HFT_RMIC_TAIFEX_POS_OPEN,`HFT_RMIC_TAIFEX_ORD_LIMIT,
                  `HFT_RMIC_TAIFEX_TIF_ROD,32'd20000,16'd7);
-        expect_found(1,ST_OK,1,2,`HFT_RMIC_RMIC_SIDE_BUY,
-                     `HFT_RMIC_TAIFEX_POS_OPEN,`HFT_RMIC_TAIFEX_ORD_LIMIT,
-                     `HFT_RMIC_TAIFEX_TIF_ROD,20000,7);
+        if(!rsp_ok || rsp_status!==ST_OK || !rsp_found) fail("update response contract mismatch");
+        ack_rsp();
         send_req(OP_LOOKUP,32'd5,0,0,0,0,0,0,0,0);
         expect_found(1,ST_OK,1,2,`HFT_RMIC_RMIC_SIDE_BUY,
                      `HFT_RMIC_TAIFEX_POS_OPEN,`HFT_RMIC_TAIFEX_ORD_LIMIT,
                      `HFT_RMIC_TAIFEX_TIF_ROD,20000,7);
         $display("HFT_RMIC_FUTURES_ORDER_CONTEXT_UPDATE_PASS");
 
-        // Exact duplicate insertion must not overwrite original context.
         send_req(OP_INSERT,32'd5,8'd7,8'd7,1,`HFT_RMIC_TAIFEX_POS_CLOSE,
                  `HFT_RMIC_TAIFEX_ORD_MARKET,`HFT_RMIC_TAIFEX_TIF_FOK,1,1);
         if(rsp_ok || rsp_status!==ST_EXISTS || !rsp_found) fail("duplicate insert contract mismatch");
