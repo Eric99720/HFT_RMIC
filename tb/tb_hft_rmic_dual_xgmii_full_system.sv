@@ -67,6 +67,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     reg [255:0] risk_order_type_allow_mask;
     reg [255:0] risk_tif_allow_mask;
     reg [255:0] risk_position_effect_allow_mask;
+    reg [7:0] cfg_position_effect;
     reg risk_account_cfg_we;
     reg [3:0] risk_account_cfg_index;
     reg risk_account_cfg_valid;
@@ -101,6 +102,12 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     wire [15:0] risk_exec_result_remaining_qty;
     wire risk_exec_metadata_error;
     wire risk_exec_queue_overflow;
+    integer risk_exec_result_count;
+    reg risk_exec_last_ok;
+    reg [1:0] risk_exec_last_reason_source;
+    reg [7:0] risk_exec_last_reason_code;
+    reg [31:0] risk_exec_last_order_id;
+    reg [15:0] risk_exec_last_remaining_qty;
 
     wire [63:0] xgmii_txd;
     wire [7:0] xgmii_txc;
@@ -259,6 +266,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     byte unsigned l42_expected [0:MAX_BYTES-1];
     byte unsigned market_payload [0:MAX_BYTES-1];
     byte unsigned r01_expected [0:MAX_BYTES-1];
+    byte unsigned r02_fill_payload [0:MAX_BYTES-1];
     byte unsigned tcp_payload [0:MAX_BYTES-1];
     byte unsigned arp_request_frame [0:MAX_BYTES-1];
     byte unsigned arp_reply_frame [0:MAX_BYTES-1];
@@ -290,6 +298,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     integer l42_len;
     integer market_len;
     integer r01_len;
+    integer r02_fill_len;
     integer arp_request_len;
     integer arp_reply_len;
     integer syn_frame_len;
@@ -344,6 +353,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
         .risk_order_type_allow_mask(risk_order_type_allow_mask),
         .risk_tif_allow_mask(risk_tif_allow_mask),
         .risk_position_effect_allow_mask(risk_position_effect_allow_mask),
+        .cfg_position_effect(cfg_position_effect),
         .risk_account_cfg_we(risk_account_cfg_we),
         .risk_account_cfg_index(risk_account_cfg_index),
         .risk_account_cfg_valid(risk_account_cfg_valid),
@@ -886,6 +896,24 @@ module tb_hft_rmic_dual_xgmii_full_system #(
         end
     endtask
 
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            risk_exec_result_count <= 0;
+            risk_exec_last_ok <= 1'b0;
+            risk_exec_last_reason_source <= 2'd0;
+            risk_exec_last_reason_code <= 8'd0;
+            risk_exec_last_order_id <= 32'd0;
+            risk_exec_last_remaining_qty <= 16'd0;
+        end else if (risk_exec_result_valid) begin
+            risk_exec_result_count <= risk_exec_result_count + 1;
+            risk_exec_last_ok <= risk_exec_result_ok;
+            risk_exec_last_reason_source <= risk_exec_result_reason_source;
+            risk_exec_last_reason_code <= risk_exec_result_reason_code;
+            risk_exec_last_order_id <= risk_exec_result_order_id;
+            risk_exec_last_remaining_qty <= risk_exec_result_remaining_qty;
+        end
+    end
+
     task automatic configure_risk;
         integer guard;
         begin
@@ -974,6 +1002,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             risk_order_type_allow_mask = {256{1'b1}};
             risk_tif_allow_mask = {256{1'b1}};
             risk_position_effect_allow_mask = {256{1'b1}};
+            cfg_position_effect = 8'h4f; // OPEN
             risk_account_cfg_we = 1'b0;
             risk_account_cfg_index = 4'd0;
             risk_account_cfg_valid = 1'b0;
