@@ -80,3 +80,6 @@ jobs:
 
       - name: Run I5 committed execution metadata alignment regression
         run: bash scripts/run_i5_committed_exec_event_iverilog.sh
+
+      - name: Run I5 committed execution FIFO regression
+        run: bash scripts/run_i5_exec_commit_fifo_iverilog.sh
