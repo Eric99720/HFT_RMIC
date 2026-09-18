@@ -334,8 +334,6 @@ module hft_rmic_rx_order_book_top_v1 #(
     wire [31:0] replay_meta_report_seq;
     wire [7:0] replay_meta_position_effect;
     wire [15:0] replay_meta_before_qty;
-    reg live_meta_available;
-    reg replay_meta_available;
     wire decoder_session_startup_seen_unused;
     wire decoder_session_login_seen_unused;
     wire [7:0] decoder_r04_status_code_unused;
@@ -372,48 +370,6 @@ module hft_rmic_rx_order_book_top_v1 #(
     wire [QTY_WIDTH-1:0] committed_order_leaves_qty = use_replay_fields ? replay_order_leaves_qty : decoder_order_leaves_qty;
     wire [31:0] committed_order_report_seq = use_replay_fields ? replay_order_report_seq : decoder_order_report_seq;
 
-    wire committed_is_r02 = (committed_order_msg_type == `HFT_RMIC_TAIFEX_MSG_R02);
-    wire committed_is_r32 = (committed_order_msg_type == `HFT_RMIC_TAIFEX_MSG_R32);
-    wire committed_is_r03 = (committed_order_msg_type == `HFT_RMIC_TAIFEX_MSG_R03);
-    wire committed_needs_futures_meta = committed_is_r02 || committed_is_r32;
-
-    wire live_meta_match =
-        (live_meta_available || live_meta_valid) &&
-        (live_meta_msg_type == committed_order_msg_type) &&
-        (live_meta_order_id == committed_order_id) &&
-        (live_meta_report_seq == committed_order_report_seq);
-    wire replay_meta_match =
-        (replay_meta_available || replay_meta_valid) &&
-        (replay_meta_msg_type == committed_order_msg_type) &&
-        (replay_meta_order_id == committed_order_id) &&
-        (replay_meta_report_seq == committed_order_report_seq);
-    wire selected_meta_match = committed_from_replay ? replay_meta_match : live_meta_match;
-    wire [7:0] selected_meta_position_effect =
-        committed_from_replay ? replay_meta_position_effect : live_meta_position_effect;
-    wire [15:0] selected_meta_before_qty =
-        committed_from_replay ? replay_meta_before_qty : live_meta_before_qty;
-
-    assign risk_commit_metadata_error =
-        committed_order_valid && committed_needs_futures_meta && !selected_meta_match;
-    assign risk_commit_valid =
-        committed_order_valid && (committed_is_r03 ||
-        (committed_needs_futures_meta && selected_meta_match));
-    assign risk_commit_msg_type = committed_order_msg_type;
-    assign risk_commit_status_code = committed_order_status;
-    assign risk_commit_exec_type = committed_order_exec_type;
-    assign risk_commit_order_id = committed_order_id;
-    assign risk_commit_side = committed_order_side;
-    // R03 release semantics use the stored order context as authoritative
-    // side/PositionEffect, so no raw PositionEffect is required for R03.
-    assign risk_commit_position_effect =
-        committed_needs_futures_meta ? selected_meta_position_effect : 8'd0;
-    assign risk_commit_order_price = committed_order_price;
-    assign risk_commit_last_qty = committed_order_last_qty[15:0];
-    assign risk_commit_leaves_qty = committed_order_leaves_qty[15:0];
-    assign risk_commit_before_qty =
-        committed_needs_futures_meta ? selected_meta_before_qty : 16'd0;
-    assign risk_commit_report_seq = committed_order_report_seq;
-    assign risk_commit_is_replay = committed_from_replay;
     wire [63:0] ob_order_no = {24'd0, committed_order_no};
     wire [63:0] ob_order_id = {32'd0, committed_order_id};
     wire [SEQ_WIDTH-1:0] ob_order_report_seq = committed_order_report_seq[SEQ_WIDTH-1:0];
@@ -585,26 +541,49 @@ module hft_rmic_rx_order_book_top_v1 #(
         .last_before_qty(replay_meta_before_qty)
     );
 
-    // Keep the most recent completed metadata record available until the
-    // corresponding frozen committed event has consumed it.  A simultaneous
-    // metadata pulse wins over clearing so same-cycle decoder/owner commit is
-    // handled correctly.
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            live_meta_available <= 1'b0;
-            replay_meta_available <= 1'b0;
-        end else begin
-            if (live_meta_valid)
-                live_meta_available <= 1'b1;
-            else if (committed_from_live_report && committed_needs_futures_meta)
-                live_meta_available <= 1'b0;
-
-            if (replay_meta_valid)
-                replay_meta_available <= 1'b1;
-            else if (committed_from_replay && committed_needs_futures_meta)
-                replay_meta_available <= 1'b0;
-        end
-    end
+    // Match the futures-only sideband against the frozen committed event.
+    // This module owns the short-lived live/replay metadata cache so the same
+    // contract is covered independently by CI.
+    hft_rmic_committed_exec_event_adapter_v1 #(.QTY_W(16)) u_i5_commit_adapter (
+        .clk(clk), .rst_n(rst_n),
+        .live_meta_valid(live_meta_valid),
+        .live_meta_msg_type(live_meta_msg_type),
+        .live_meta_order_id(live_meta_order_id),
+        .live_meta_report_seq(live_meta_report_seq),
+        .live_meta_position_effect(live_meta_position_effect),
+        .live_meta_before_qty(live_meta_before_qty),
+        .replay_meta_valid(replay_meta_valid),
+        .replay_meta_msg_type(replay_meta_msg_type),
+        .replay_meta_order_id(replay_meta_order_id),
+        .replay_meta_report_seq(replay_meta_report_seq),
+        .replay_meta_position_effect(replay_meta_position_effect),
+        .replay_meta_before_qty(replay_meta_before_qty),
+        .committed_valid(committed_order_valid),
+        .committed_from_replay(committed_from_replay),
+        .committed_msg_type(committed_order_msg_type),
+        .committed_status_code(committed_order_status),
+        .committed_exec_type(committed_order_exec_type),
+        .committed_order_id(committed_order_id),
+        .committed_side(committed_order_side),
+        .committed_order_price(committed_order_price),
+        .committed_last_qty(committed_order_last_qty[15:0]),
+        .committed_leaves_qty(committed_order_leaves_qty[15:0]),
+        .committed_report_seq(committed_order_report_seq),
+        .risk_commit_valid(risk_commit_valid),
+        .risk_commit_msg_type(risk_commit_msg_type),
+        .risk_commit_status_code(risk_commit_status_code),
+        .risk_commit_exec_type(risk_commit_exec_type),
+        .risk_commit_order_id(risk_commit_order_id),
+        .risk_commit_side(risk_commit_side),
+        .risk_commit_position_effect(risk_commit_position_effect),
+        .risk_commit_order_price(risk_commit_order_price),
+        .risk_commit_last_qty(risk_commit_last_qty),
+        .risk_commit_leaves_qty(risk_commit_leaves_qty),
+        .risk_commit_before_qty(risk_commit_before_qty),
+        .risk_commit_report_seq(risk_commit_report_seq),
+        .risk_commit_is_replay(risk_commit_is_replay),
+        .metadata_error(risk_commit_metadata_error)
+    );
 
     hft_l41_replay_engine #(
         .DATA_WIDTH(DATA_WIDTH), .KEEP_WIDTH(KEEP_WIDTH), .ERR_WIDTH(ERR_WIDTH)
