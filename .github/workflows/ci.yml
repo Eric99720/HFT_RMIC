@@ -74,3 +74,6 @@ jobs:
 
       - name: Compile I4 frozen-encoder parity testbench
         run: bash scripts/run_i4_r01_parity_compile_iverilog.sh
+
+      - name: Run I5 keyed execution metadata regression
+        run: bash scripts/run_i5_exec_metadata_iverilog.sh
