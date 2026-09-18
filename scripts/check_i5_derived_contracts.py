@@ -21,8 +21,8 @@ checks = {
         "hft_rmic_dual_order_source_v1",
         "hft_rmic_exec_commit_fifo_v1",
         "hft_rmic_spec_order_dedupe_v1",
-        "hft_rmic_order_ingress_slice_v1",
         "hft_rmic_shared_core_v1",
+        "ENABLE_HOT_MAP_CACHE(1)",
         "financial_protocol_encoder_session_top",
     ],
     "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv": [
@@ -63,8 +63,10 @@ if "risk_exec_queue_overflow" not in app or "execq_overflow_sticky" not in app:
     errors.append("I5 app lacks fail-closed committed-execution FIFO overflow path")
 if "hft_rmic_spec_order_dedupe_v1" not in app or "prebuild_duplicate_block" not in app:
     errors.append("I5 app lacks back-to-back speculative order duplicate guard")
-if "hft_rmic_order_ingress_slice_v1" not in app or "risk_source_raw_valid" not in app:
-    errors.append("I5 app lacks registered order ingress timing cut before shared risk")
+if "u_i5_order_ingress_slice" in app or "risk_source_raw_valid" in app:
+    errors.append("I5 latency-recovery app still contains the one-cycle risk ingress slice")
+if "hot_account_key(cfg_investor_acno)" not in app or "hot_product_key(cfg_symbol_slot)" not in app:
+    errors.append("I5 latency-recovery app does not pre-resolve bridge-owned mapping keys")
 
 net = (root / "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv").read_text(encoding="utf-8")
 if "hft_round_chip_app_top #(" in net:

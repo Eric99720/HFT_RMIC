@@ -102,6 +102,10 @@ try {
             Write-Host '[HFT_RMIC] Running I5 XGMII TX timing-derivative regression...'
             & $bash.Source scripts/run_i5_xgmii_tx_timing_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'I5 XGMII TX timing-derivative regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 cached hot-map regression...'
+            & $bash.Source scripts/run_i5_cached_exact_map_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 cached hot-map regression failed' }
         }
     }
 

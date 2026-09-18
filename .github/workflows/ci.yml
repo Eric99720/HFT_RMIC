@@ -95,3 +95,6 @@ jobs:
 
       - name: Run I5 XGMII TX timing-derivative regression
         run: bash scripts/run_i5_xgmii_tx_timing_iverilog.sh
+
+      - name: Run I5 cached hot-map regression
+        run: bash scripts/run_i5_cached_exact_map_iverilog.sh
