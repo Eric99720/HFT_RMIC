@@ -62,6 +62,46 @@ try {
             Write-Host '[HFT_RMIC] Compiling I3 atomic CL2EX OOC composition harness...'
             & $bash.Source scripts/run_i3_cl2ex_ooc_compile_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'I3 CL2EX OOC composition compile failed' }
+
+            Write-Host '[HFT_RMIC] Running I4 shared CL2EX/EX2CL ownership regression...'
+            & $bash.Source scripts/run_i4_shared_core_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I4 shared-core regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I4 dual-source risk-to-encoder regression...'
+            & $bash.Source scripts/run_i4_r01_stub_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I4 R01 stub regression failed' }
+
+            Write-Host '[HFT_RMIC] Compiling I4 shared risk-to-R01 composition harness...'
+            & $bash.Source scripts/run_i4_r01_ooc_compile_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I4 R01 OOC composition compile failed' }
+
+            Write-Host '[HFT_RMIC] Compiling I4 frozen-encoder parity testbench...'
+            & $bash.Source scripts/run_i4_r01_parity_compile_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I4 R01 parity compile failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 keyed execution metadata regression...'
+            & $bash.Source scripts/run_i5_exec_metadata_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 execution metadata regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 committed execution metadata alignment regression...'
+            & $bash.Source scripts/run_i5_committed_exec_event_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 committed execution metadata regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 committed execution FIFO regression...'
+            & $bash.Source scripts/run_i5_exec_commit_fifo_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 execution FIFO regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 speculative order dedupe regression...'
+            & $bash.Source scripts/run_i5_spec_order_dedupe_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 speculative order dedupe regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 registered risk-ingress regression...'
+            & $bash.Source scripts/run_i5_order_ingress_slice_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 registered risk-ingress regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 XGMII TX timing-derivative regression...'
+            & $bash.Source scripts/run_i5_xgmii_tx_timing_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 XGMII TX timing-derivative regression failed' }
         }
     }
 

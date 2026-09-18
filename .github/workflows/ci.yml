@@ -22,6 +22,9 @@ jobs:
       - name: Check Vivado 2022.1 Tcl compatibility
         run: python -B scripts/check_vivado_2022_tcl.py
 
+      - name: Check I5 derived hierarchy contracts
+        run: python -B scripts/check_i5_derived_contracts.py
+
       - name: Check diff whitespace
         run: git diff --check HEAD^ HEAD || git diff --check
 
@@ -74,3 +77,21 @@ jobs:
 
       - name: Compile I4 frozen-encoder parity testbench
         run: bash scripts/run_i4_r01_parity_compile_iverilog.sh
+
+      - name: Run I5 keyed execution metadata regression
+        run: bash scripts/run_i5_exec_metadata_iverilog.sh
+
+      - name: Run I5 committed execution metadata alignment regression
+        run: bash scripts/run_i5_committed_exec_event_iverilog.sh
+
+      - name: Run I5 committed execution FIFO regression
+        run: bash scripts/run_i5_exec_commit_fifo_iverilog.sh
+
+      - name: Run I5 speculative order dedupe regression
+        run: bash scripts/run_i5_spec_order_dedupe_iverilog.sh
+
+      - name: Run I5 registered risk-ingress regression
+        run: bash scripts/run_i5_order_ingress_slice_iverilog.sh
+
+      - name: Run I5 XGMII TX timing-derivative regression
+        run: bash scripts/run_i5_xgmii_tx_timing_iverilog.sh

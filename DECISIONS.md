@@ -233,6 +233,53 @@ The HFT_RMIC AMU CI stub and all order-store setup tests must reproduce this con
 **Claim limit:** I4 does not establish the full dual-XGMII top timing or market-packet-to-wire latency. It also does not establish board/QSFP latency, TAIFEX SPAN, live-exchange interoperability, or exchange conformance. I5 must integrate this closed boundary into the pinned full-system hierarchy and remeasure the combined top.
 
 ---
+## D-20260918-17 — Key committed execution metadata and queue exchange events before serialized risk
+
+**Status:** Adopted for I5 full-system integration.
+
+**Decision:** Futures-only R02/R32 metadata is captured from both the live TMP stream and the frozen replay stream, then matched to the frozen report-sequence owner's committed event by `msg_type + order_id + report_seq`. A committed R02/R32 may reach RM state mutation only when that identity match succeeds. R03 does not require raw PositionEffect/before_qty because the stored order context is authoritative for release semantics.
+
+The frozen report owner emits committed events as pulses, while the I4 shared risk core can be temporarily busy with CL admission. I5 therefore inserts a committed-execution FIFO between the frozen committed event and the serialized shared risk core. FIFO overflow is sticky, blocks new admission through recovery-required, and may only be cleared as part of explicit recovery/state reconstruction; exchange events must never be silently dropped.
+
+**Why:** Time-coincidence between raw decoder output and later replay commit is not a safe metadata contract, and direct pulse-to-ready/valid wiring can lose an execution when CL owns the risk transaction. Keyed alignment preserves frozen replay/de-dup authority; buffering preserves event delivery across short-lived RM backpressure.
+
+**Evidence:** `rtl/adapters/hft_tmp_exec_metadata_tap_v2.sv`; `rtl/integration/hft_rmic_committed_exec_event_adapter_v1.sv`; `rtl/integration/hft_rmic_exec_commit_fifo_v1.sv`; associated I5 self-checking regressions; `rtl/integration/hft_rmic_rx_order_book_top_v1.sv`; `rtl/integration/hft_rmic_round_chip_app_top_v1.sv`.
+
+**Claim limit:** Current evidence is unit/integration-source level until the pinned private HFT/RMIC sources are compiled in local full-system XSim and real-XPM U50 OOC. Queue depth 8 is a correctness buffer, not a throughput proof or exchange burst guarantee.
+
+---
+## D-20260918-18 — Require bidirectional full-system futures-state closure before I5 functional sign-off
+
+**Status:** Adopted for I5 full-system acceptance.
+
+**Decision:** I5 functional closure requires a single full dual-XGMII scenario that proves both directions of the integrated state loop, not only market-to-R01 transmission. The required sequence is:
+
+```text
+market update
+ -> frozen strategy BUY OPEN
+ -> futures risk RESERVE + order context
+ -> frozen/session/network R01
+ -> live R02 full fill
+ -> frozen report-sequence owner commit
+ -> keyed futures metadata match
+ -> committed-event FIFO
+ -> shared RM EX2CL mutation (long_position becomes available)
+ -> later market update produces SELL
+ -> PositionEffect CLOSE
+ -> the same futures state accepts SELL CLOSE
+ -> second frozen/session/network R01
+```
+
+The integration-owned XGMII/full-system derivatives expose `cfg_position_effect` so OPEN/CLOSE can be selected without modifying the pinned HFT upstream. A second metadata event may not silently overwrite an unconsumed live/replay metadata cache; overrun is fail-closed and escalates recovery-required. Same-cycle consume-plus-next-metadata is allowed as an atomic cache replace.
+
+**Why:** A market-to-R01 smoke proves only CL2EX insertion. It does not prove that committed exchange reports reach the same futures state used by later admission. Likewise, relying on implicit timing between raw metadata and committed report delivery is weaker than an explicit cache ownership rule. The fill-to-close sequence makes the shared-state dependency observable: without a successful committed BUY OPEN fill, the subsequent SELL CLOSE must fail with insufficient long position.
+
+**Evidence before local XSim:** `rtl/integration/hft_rmic_committed_exec_event_adapter_v1.sv`; metadata overrun/atomic-replace unit regression; `tb/tb_hft_rmic_dual_xgmii_full_system.sv` Scenario 10; derived hierarchy contract checker; exact-head CI.
+
+**Claim limit:** The Scenario 10 source and unit contracts are not themselves full-system simulation evidence. I5-03 remains VERIFYING until local pinned-source XSim emits `I5_FULL_SYSTEM_FILL_TO_CLOSE_PASS` and the overall full-system PASS marker without `TEST_FAIL`.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:
