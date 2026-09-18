@@ -62,6 +62,10 @@ if "risk_exec_queue_overflow" not in app or "execq_overflow_sticky" not in app:
 net = (root / "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv").read_text(encoding="utf-8")
 if "hft_round_chip_app_top #(" in net:
     errors.append("I5 trading-port top instantiates frozen app directly instead of risk-aware app")
+if "module hft_axis_reverse_byte_order_64_e2e (" in net:
+    errors.append("I5 trading-port derivative redefines frozen byte-order helper module name")
+if "module hft_rmic_axis_reverse_byte_order_64_e2e_v1 (" not in net:
+    errors.append("I5 trading-port derivative lacks namespaced byte-order helper")
 
 if ".cfg_position_effect(8'h4f)" in net:
     errors.append("I5 trading-port top still hard-codes PositionEffect OPEN")
