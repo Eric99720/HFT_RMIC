@@ -11,6 +11,7 @@ module tb_hft_rmic_shared_core_v1;
     reg [255:0] order_type_allow_mask, tif_allow_mask, position_effect_allow_mask;
     reg account_cfg_we=0; reg [3:0] account_cfg_index=0; reg account_cfg_valid=0; reg [31:0] account_cfg_key=0; reg [7:0] account_cfg_value=0;
     reg product_cfg_we=0; reg [3:0] product_cfg_index=0; reg product_cfg_valid=0; reg [15:0] product_cfg_key=0; reg [7:0] product_cfg_value=0;
+    reg [31:0] hot_account_key=32'h11112222; reg [15:0] hot_product_key=16'd0;
     reg cfg_valid=0; wire cfg_ready; reg [7:0] cfg_account_id=0,cfg_product_id=0; reg cfg_enabled=0;
     reg [63:0] cfg_margin_budget=0,cfg_margin_per_contract=0; reg [15:0] cfg_long_position=0,cfg_short_position=0,cfg_pending_open_long=0,cfg_pending_open_short=0,cfg_reserved_close_long=0,cfg_reserved_close_short=0;
     wire cfg_done,cfg_ok; wire [7:0] cfg_reason_code;
