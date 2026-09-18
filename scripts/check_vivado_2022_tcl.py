@@ -13,6 +13,15 @@ for p in sorted(vivado_dir.glob("*.tcl")):
             continue
         if "read_verilog" in line and "-include_dirs" in line:
             errors.append(f"{p.name}:{lineno}: unsupported read_verilog -include_dirs found")
+        # Tcl's elseif/else are part of the same 'if' command.  A new line
+        # beginning with elseif/else after the previous command has already
+        # closed is parsed as a new command ("invalid command name elseif").
+        # Keep this mechanical guard because Vivado batch flows otherwise fail
+        # before synthesis and the old compatibility checker did not catch it.
+        if line.startswith("elseif ") or line.startswith("elseif{") or line == "elseif":
+            errors.append(f"{p.name}:{lineno}: standalone Tcl elseif command found")
+        if line.startswith("else ") or line.startswith("else{") or line == "else":
+            errors.append(f"{p.name}:{lineno}: standalone Tcl else command found")
 
 required_in_memory = [
     vivado_dir / "i2_ooc_impl.tcl",

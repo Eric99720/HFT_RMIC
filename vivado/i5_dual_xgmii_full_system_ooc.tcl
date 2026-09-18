@@ -12,9 +12,13 @@ proc load_filelist {root_dir path src_var inc_var} {
     foreach line [split [read $fh] "\n"] {
         set item [string trim [string map [list \uFEFF ""] $line]]
         if {$item eq "" || [string match "#*" $item]} { continue }
-        if {[string match "+incdir+*" $item]} { lappend include_dirs [file normalize [file join $root_dir [string range $item 8 end]]] }
-        elseif {[string match "-f *" $item]} { load_filelist $root_dir [file join $root_dir [string trim [string range $item 3 end]]] src_files include_dirs }
-        elseif {![string match "tb/*" $item]} { lappend src_files [file normalize [file join $root_dir $item]] }
+        if {[string match "+incdir+*" $item]} {
+            lappend include_dirs [file normalize [file join $root_dir [string range $item 8 end]]]
+        } elseif {[string match "-f *" $item]} {
+            load_filelist $root_dir [file join $root_dir [string trim [string range $item 3 end]]] src_files include_dirs
+        } elseif {![string match "tb/*" $item]} {
+            lappend src_files [file normalize [file join $root_dir $item]]
+        }
     }
     close $fh
 }
