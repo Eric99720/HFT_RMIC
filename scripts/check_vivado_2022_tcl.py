@@ -31,6 +31,26 @@ for p in required_in_memory:
     if "auto_detect_xpm" not in text:
         errors.append(f"{p.name}: XPM auto-detection missing")
 
+
+# I4 local XSim must use behavioral RAM fallbacks because direct xvlog/xelab
+# does not automatically link Vivado XPM simulation libraries. Physical OOC,
+# however, must keep real XPM block RAM.
+parity_runner = root / "scripts" / "run_i4_r01_parity_xsim.ps1"
+if not parity_runner.exists():
+    errors.append("missing I4 parity runner")
+else:
+    parity_text = parity_runner.read_text(encoding="utf-8")
+    for macro in ("AMU_BEHAVIORAL_RAM", "HFT_RMIC_BEHAVIORAL_RAM"):
+        if macro not in parity_text:
+            errors.append(f"run_i4_r01_parity_xsim.ps1: missing {macro} define")
+
+i4_ooc = vivado_dir / "i4_r01_path_ooc_impl.tcl"
+if i4_ooc.exists():
+    i4_ooc_text = i4_ooc.read_text(encoding="utf-8")
+    for macro in ("AMU_BEHAVIORAL_RAM", "HFT_RMIC_BEHAVIORAL_RAM"):
+        if macro in i4_ooc_text:
+            errors.append(f"i4_r01_path_ooc_impl.tcl: physical OOC must not define {macro}")
+
 if errors:
     print("VIVADO_2022_TCL_CHECK_FAIL")
     for e in errors:
