@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "record_revision": "2026-09-18-i5-active-v1",
-  "observed_at_utc": "2026-09-18T05:58:00Z",
+  "record_revision": "2026-09-18-i5-full-system-prepared-v1",
+  "observed_at_utc": "2026-09-18T06:20:00Z",
   "goal": "Integrate the frozen dual-XGMII HFT baseline with the frozen RMIC M5.4 transactional core without modifying either upstream, while closing TAIFEX futures accounting, execution idempotency, safety-policy, timing, and end-to-end validation gaps.",
-  "handoff": "I5 is ACTIVE. I4 is merged and closes the focused frozen order-data → futures risk → frozen R01 encoder boundary. I5 now composes that boundary into the pinned dual-XGMII full-system hierarchy while preserving frozen network, TMP session/maintenance, replay/report-sequence and encoder ownership.",
-  "next_action": "Build an integration-owned round-chip/full-system composition from the pinned HFT lower-level modules, expose committed order-report metadata to the shared risk core, close focused full-system simulation, then measure the combined U50 composition.",
+  "handoff": "I5 full dual-XGMII integration source and local verification flows are prepared. The integration-owned hierarchy preserves frozen network/TCP/session/replay ownership, routes both R01 producers through the closed I4 risk boundary, aligns committed R02/R32 futures metadata by msg_type+order_id+report_seq, and queues committed execution pulses before the serialized shared risk core. Exact-head governance and unit regressions pass; the remaining I5 gates require local compilation/simulation and U50 implementation against the pinned private upstreams.",
+  "next_action": "Run the packaged I5 dual-XGMII functional XSim first. After its ZIP is reviewed, run the real-XPM U50 dual-XGMII OOC implementation; use those results to fix/close I5 functional and physical integration before measuring a new latency baseline.",
   "active_plan": "docs/exec_plans/2026-09-18-i5-full-dual-xgmii-integration.md",
-  "decision": "D-20260918-16",
+  "decision": "D-20260918-17",
   "phase": {
     "id": "I5",
     "name": "Full Dual-XGMII HFT + RMIC Integration",
-    "status": "ACTIVE",
+    "status": "VERIFYING",
     "branch": "codex/i5-full-dual-xgmii-integration",
-    "pr": null
+    "pr": 4
   },
   "source_pins": {
     "hft": "50217fad1fd580f8c451ba893f9035f4be1dc21a",
@@ -21,25 +21,25 @@
   "tasks": [
     {
       "id": "I5-01",
-      "status": "ACTIVE",
+      "status": "VERIFYING",
       "title": "Create integration-owned round-chip composition with no R01 risk bypass",
       "acceptance": "Pinned HFT decoder/order-book/strategy/session modules are reused without upstream edits; ordinary and prebuild order producers both enter the closed I4 risk boundary before the frozen session encoder."
     },
     {
       "id": "I5-02",
-      "status": "PLANNED",
+      "status": "VERIFYING",
       "title": "Feed committed R02/R32/R03 lifecycle into the shared futures risk core",
       "acceptance": "Only frozen committed/de-duplicated report events mutate risk state; PositionEffect/before_qty sideband metadata are aligned with the committed report and duplicate/replay/gap behavior remains owned by frozen HFT."
     },
     {
       "id": "I5-03",
-      "status": "PLANNED",
+      "status": "VERIFYING",
       "title": "Close focused full-system market-to-risk-to-R01 and execution-return regressions",
       "acceptance": "Self-checking simulation proves market event→strategy→risk→R01, reject suppression, committed fill→state reconciliation, and session/replay behavior without modifying pinned upstreams."
     },
     {
       "id": "I5-04",
-      "status": "PLANNED",
+      "status": "VERIFYING",
       "title": "Measure the integrated full-system composition at 156.25 MHz",
       "acceptance": "Reproducible Vivado evidence reports timing/resources/critical path/DRC/power for the combined integration top; any latency measurement uses explicitly documented boundaries."
     },
@@ -158,6 +158,24 @@
       "evidence": "docs/results/i4_r01_path_ooc_postroute.md",
       "id": "I4-R01-PATH-OOC-POSTROUTE",
       "summary": "Real-XPM I4 risk-to-frozen-R01 U50 OOC closes at 156.25 MHz: synth WNS +2.310 ns, routed WNS +0.827 ns, TNS 0, 5596 LUT, 4454 FF, 19 RAMB36 + 1 RAMB18, 10 DSP, zero routing errors; the worst path remains inside the frozen AMU."
+    },
+    {
+      "date": "2026-09-18",
+      "evidence": "rtl/integration/hft_rmic_committed_exec_event_adapter_v1.sv",
+      "id": "I5-COMMITTED-METADATA-SAFETY",
+      "summary": "I5 unit regressions close keyed live/replay futures metadata alignment and fail-closed mismatch handling before committed execution reaches the shared risk core."
+    },
+    {
+      "date": "2026-09-18",
+      "evidence": "rtl/integration/hft_rmic_exec_commit_fifo_v1.sv",
+      "id": "I5-EXEC-COMMIT-QUEUE",
+      "summary": "Committed execution pulses are buffered before the serialized shared risk core; FIFO overflow is sticky and escalates the full app into recovery-required rather than silently dropping an exchange event."
+    },
+    {
+      "date": "2026-09-18",
+      "evidence": "rtl/integration/hft_rmic_dual_xgmii_full_system_top_v1.sv",
+      "id": "I5-FULL-COMPOSITION-PREPARED",
+      "summary": "Integration-owned risk-aware round-chip, trading-port XGMII and dual-XGMII derivatives plus frozen-regression XSim and real-XPM OOC runners are prepared; local private-upstream Vivado evidence remains pending."
     }
   ]
 }
