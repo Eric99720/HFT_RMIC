@@ -32,6 +32,33 @@ initial begin
  $display("I5_REPLAY_COMMITTED_METADATA_PASS");
  @(posedge clk); @(negedge clk); committed_valid=0;
 
+ // A second metadata packet before the cached event is consumed must fail closed
+ // and must not overwrite the original cached identity/payload.
+ @(negedge clk); live_meta_msg_type=`HFT_RMIC_TAIFEX_MSG_R02; live_meta_order_id=500; live_meta_report_seq=10; live_meta_position_effect=8'h4f; live_meta_before_qty=6; live_meta_valid=1;
+ @(posedge clk); @(negedge clk); live_meta_valid=0;
+ @(negedge clk); live_meta_order_id=501; live_meta_report_seq=11; live_meta_position_effect=8'h43; live_meta_before_qty=2; live_meta_valid=1; #1;
+ if(!metadata_error) fail("metadata cache overrun did not fail closed");
+ $display("I5_COMMITTED_METADATA_OVERRUN_PASS");
+ @(posedge clk); @(negedge clk); live_meta_valid=0;
+ committed_msg_type=`HFT_RMIC_TAIFEX_MSG_R02; committed_order_id=500; committed_report_seq=10; committed_from_replay=0; committed_valid=1; #1;
+ if(!risk_commit_valid || metadata_error || risk_commit_position_effect!==8'h4f || risk_commit_before_qty!==6) fail("overrun corrupted cached metadata");
+ @(posedge clk); @(negedge clk); committed_valid=0;
+
+ // Consuming the old cache and receiving the next metadata on the same cycle is
+ // a legal atomic replace. The committed event must see the old payload and the
+ // next commit must see the newly cached payload.
+ @(negedge clk); live_meta_msg_type=`HFT_RMIC_TAIFEX_MSG_R02; live_meta_order_id=600; live_meta_report_seq=12; live_meta_position_effect=8'h4f; live_meta_before_qty=9; live_meta_valid=1;
+ @(posedge clk); @(negedge clk); live_meta_valid=0;
+ @(negedge clk);
+ committed_msg_type=`HFT_RMIC_TAIFEX_MSG_R02; committed_order_id=600; committed_report_seq=12; committed_from_replay=0; committed_valid=1;
+ live_meta_msg_type=`HFT_RMIC_TAIFEX_MSG_R02; live_meta_order_id=601; live_meta_report_seq=13; live_meta_position_effect=8'h43; live_meta_before_qty=4; live_meta_valid=1; #1;
+ if(!risk_commit_valid || metadata_error || risk_commit_position_effect!==8'h4f || risk_commit_before_qty!==9) fail("atomic metadata replace old event mismatch");
+ @(posedge clk); @(negedge clk); committed_valid=0; live_meta_valid=0;
+ committed_order_id=601; committed_report_seq=13; committed_valid=1; #1;
+ if(!risk_commit_valid || metadata_error || risk_commit_position_effect!==8'h43 || risk_commit_before_qty!==4) fail("atomic metadata replace next event mismatch");
+ $display("I5_COMMITTED_METADATA_ATOMIC_REPLACE_PASS");
+ @(posedge clk); @(negedge clk); committed_valid=0;
+
  // R03 is committed directly; stored order context owns side/PE release semantics.
  @(negedge clk); committed_msg_type=`HFT_RMIC_TAIFEX_MSG_R03; committed_order_id=400; committed_report_seq=0; committed_from_replay=0; committed_valid=1; #1;
  if(!risk_commit_valid || metadata_error || risk_commit_position_effect!==0 || risk_commit_before_qty!==0) fail("R03 direct commit mismatch");
