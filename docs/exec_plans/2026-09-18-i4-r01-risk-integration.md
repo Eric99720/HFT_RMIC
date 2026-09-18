@@ -100,7 +100,7 @@ Local command:
 pwsh .\scripts\run_i4_r01_parity_xsim.ps1
 ```
 
-Status: VERIFYING. The first real-AMU parity attempt exposed the AMU response-contract issue described in Section 6; the corrected head must be rerun.
+Status: COMPLETE. Corrected Vivado/XSim evidence at integration commit `8c8733e57f70eb752d55ddbecae8ec6018ecb614` passes exact 80-byte parity for both legacy and prebuild sources and proves kill-switch reject emits zero integrated R01 bytes. See `docs/results/i4_r01_byte_parity_xsim.md`.
 
 ### I4-04 — U50 physical composition gate
 
@@ -122,7 +122,7 @@ Local command:
 pwsh .\scripts\run_i4_r01_path_ooc_impl.ps1
 ```
 
-Status: VERIFYING. It must be run after corrected parity evidence so the measured composition uses the corrected admission predicate.
+Status: VERIFYING. Corrected parity is closed; this real-XPM U50 implementation is now the only remaining I4 gate.
 
 ## 6. Unexpected real-AMU contract discovery and correction
 
@@ -156,7 +156,20 @@ Research-integrity handling:
 - The I3 result document and `D-20260918-14` explicitly narrow the earlier real-AMU functional-closure wording because the old CI stub encoded different INSERT semantics.
 - frozen RMIC and frozen HFT source pins remain unchanged.
 
-## 7. Evidence closed before corrected local rerun
+## 7. Corrected local parity closure
+
+The rerun package `HFT_RMIC_i4_r01_parity_xsim_20260918-125059.zip` completes normally with:
+
+```text
+I4_R01_BYTE_PARITY_PASS label=legacy bytes=80
+I4_R01_BYTE_PARITY_PASS label=prebuild bytes=80
+I4_R01_REJECT_NO_PACKET_PASS
+HFT_RMIC_I4_R01_BYTE_PARITY_TB_PASS
+```
+
+The parity flow uses behavioral synchronous RAM fallbacks for XSim only; physical OOC remains real-XPM. The full result and claim boundary are recorded in `docs/results/i4_r01_byte_parity_xsim.md`.
+
+## 8. Evidence closed before U50 OOC
 
 Exact-head GitHub CI covers:
 
@@ -174,7 +187,7 @@ Exact-head GitHub CI covers:
 
 The remaining evidence is deliberately local because it uses the pinned private submodules and Vivado/XSim implementation stack.
 
-## 8. Non-goals
+## 9. Non-goals
 
 - editing either pinned upstream;
 - changing frozen TMP R01 field packing/checksum behavior;
@@ -184,6 +197,6 @@ The remaining evidence is deliberately local because it uses the pinned private 
 - CL2EX II=1 optimization;
 - board/live-exchange latency claim.
 
-## 9. Claim limits
+## 10. Claim limits
 
 I4 closes the focused order-to-R01 risk boundary only after both corrected local gates pass. Routed OOC timing is not packet latency. XSim byte parity is not board traffic. Full network/PCS-PMA timing and physical end-to-end latency remain later phases.
