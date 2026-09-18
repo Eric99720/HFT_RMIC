@@ -103,6 +103,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     wire risk_exec_metadata_error;
     wire risk_exec_queue_overflow;
     integer risk_exec_result_count;
+    integer risk_reject_count;
     reg risk_exec_last_ok;
     reg [1:0] risk_exec_last_reason_source;
     reg [7:0] risk_exec_last_reason_code;
@@ -899,6 +900,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     always @(posedge clk) begin
         if (!rst_n) begin
             risk_exec_result_count <= 0;
+            risk_reject_count <= 0;
             risk_exec_last_ok <= 1'b0;
             risk_exec_last_reason_source <= 2'd0;
             risk_exec_last_reason_code <= 8'd0;
@@ -912,6 +914,8 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             risk_exec_last_order_id <= risk_exec_result_order_id;
             risk_exec_last_remaining_qty <= risk_exec_result_remaining_qty;
         end
+        if (rst_n && risk_reject_valid)
+            risk_reject_count <= risk_reject_count + 1;
     end
 
     task automatic configure_risk;
@@ -1666,6 +1670,39 @@ module tb_hft_rmic_dual_xgmii_full_system #(
         end
     endtask
 
+    task automatic send_live_r02_fill_expect_risk(input string label);
+        integer before_count;
+        integer guard;
+        begin
+            before_count = risk_exec_result_count;
+            send_tcp_payload_expect_ack_only(label, r02_fill_payload, r02_fill_len);
+            guard = 0;
+            while (risk_exec_result_count == before_count) begin
+                @(posedge clk);
+                guard = guard + 1;
+                if (guard > 400) begin
+                    $display("TEST_FAIL: %s no RMIC execution result", label);
+                    $finish;
+                end
+            end
+            #1;
+            if (!risk_exec_last_ok ||
+                (risk_exec_last_order_id !== 32'd1) ||
+                (risk_exec_last_remaining_qty !== 16'd0) ||
+                risk_exec_metadata_error || risk_exec_queue_overflow ||
+                risk_recovery_required) begin
+                $display("TEST_FAIL: %s RMIC fill result ok=%0d src=%0d code=%0d oid=%0d rem=%0d meta=%0d queue=%0d recovery=%0d",
+                         label, risk_exec_last_ok, risk_exec_last_reason_source,
+                         risk_exec_last_reason_code, risk_exec_last_order_id,
+                         risk_exec_last_remaining_qty, risk_exec_metadata_error,
+                         risk_exec_queue_overflow, risk_recovery_required);
+                $finish;
+            end
+            $display("I5_FULL_SYSTEM_COMMITTED_FILL_PASS order_id=%0d remaining=%0d",
+                     risk_exec_last_order_id, risk_exec_last_remaining_qty);
+        end
+    endtask
+
     task automatic trigger_local_r04_expect_frame(input string label);
         reg [31:0] seq_before;
         reg [31:0] ack_before;
@@ -2218,6 +2255,70 @@ module tb_hft_rmic_dual_xgmii_full_system #(
         end
     endtask
 
+    task automatic scenario_10_risk_closed_loop;
+        integer reject_before;
+        begin
+            $display("SCENARIO_10: market BUY OPEN -> committed R02 fill -> SELL CLOSE");
+            reset_dut();
+            cfg_position_effect = 8'h4f; // OPEN
+            set_market_payload();
+            set_r01_expected();
+            set_r02_full_fill_payload();
+            set_l40_expected_report_seq(32'd0);
+
+            run_arp_tcp_handshake("Scenario 10");
+            send_tcp_payload_expect_ack_and_app("Scenario 10 L10",
+                                                l10_payload, l10_len, l20_expected, l20_len);
+            send_tcp_payload_expect_ack_and_app("Scenario 10 L30",
+                                                l30_payload, l30_len, l40_expected, l40_len);
+            send_tcp_payload_expect_ack_and_app("Scenario 10 L50",
+                                                l50_payload, l50_len, l60_expected, l60_len);
+            if (!round_session_ready || !round_app_subsystem_ready) begin
+                $display("TEST_FAIL: Scenario 10 session setup ready=%0d app=%0d",
+                         round_session_ready, round_app_subsystem_ready);
+                $finish;
+            end
+
+            reject_before = risk_reject_count;
+            send_udp_market_expect_r01("Scenario 10 BUY OPEN R01");
+            if (risk_reject_count != reject_before) begin
+                $display("TEST_FAIL: Scenario 10 BUY OPEN was risk rejected");
+                $finish;
+            end
+
+            send_live_r02_fill_expect_risk("Scenario 10 live R02 full fill");
+            if (dut.u_trading_core.u_round_chip_app.rx_last_committed_report_seq !== 32'd1) begin
+                $display("TEST_FAIL: Scenario 10 committed report seq=%0d expected=1",
+                         dut.u_trading_core.u_round_chip_app.rx_last_committed_report_seq);
+                $finish;
+            end
+
+            // Only a real successful EX2CL fill creates long_position=1.
+            // Switch the next order metadata to CLOSE and force a SELL-only
+            // market snapshot. If the fill did not mutate the shared state,
+            // this order must fail CLOSE_LONG_INSUFFICIENT instead of emitting R01.
+            cfg_position_effect = 8'h43; // CLOSE
+            set_sell_close_market_and_r01();
+            reject_before = risk_reject_count;
+            send_udp_market_expect_r01("Scenario 10 SELL CLOSE R01");
+            if (risk_reject_count != reject_before ||
+                risk_recovery_required || risk_exec_metadata_error ||
+                risk_exec_queue_overflow) begin
+                $display("TEST_FAIL: Scenario 10 SELL CLOSE risk state reject_delta=%0d recovery=%0d meta=%0d queue=%0d",
+                         risk_reject_count-reject_before, risk_recovery_required,
+                         risk_exec_metadata_error, risk_exec_queue_overflow);
+                $finish;
+            end
+            if (dut.u_trading_core.u_round_chip_app.u_decoder_encoder_bridge.order_id_counter !== 32'd2) begin
+                $display("TEST_FAIL: Scenario 10 order-id counter=%0d expected=2",
+                         dut.u_trading_core.u_round_chip_app.u_decoder_encoder_bridge.order_id_counter);
+                $finish;
+            end
+            $display("I5_FULL_SYSTEM_FILL_TO_CLOSE_PASS");
+            $display("TEST_PASS: Scenario 10 full bidirectional HFT+RMIC risk loop complete");
+        end
+    endtask
+
     task automatic scenario_4_bad_frame_drop;
         begin
             $display("SCENARIO_4: bad-FCS / checksum failure drop");
@@ -2547,7 +2648,8 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             scenario_1_arp_handshake();
             scenario_2_tcp_payload_app_response();
             scenario_3_udp_market_order_response();
-            back_to_back_market_expect_two_commits("Scenario 3 back-to-back market CDC");
+            scenario_10_risk_closed_loop();
+            back_to_back_market_expect_two_commits("Scenario 10 back-to-back market CDC");
             market_source_reset_expect_no_phantom("Scenario 3 market-source reset");
             scenario_4_bad_frame_drop();
             trading_port_market_expect_no_order("Scenario 4 trading-port market isolation");
