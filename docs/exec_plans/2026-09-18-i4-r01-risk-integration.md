@@ -3,7 +3,7 @@
 ## 1. Phase identity
 
 - Phase: `I4`
-- Status: VERIFYING
+- Status: COMPLETE
 - Branch: `codex/i4-r01-risk-integration`
 - Draft PR: `#3`
 - HFT pin: `50217fad1fd580f8c451ba893f9035f4be1dc21a`
@@ -122,7 +122,7 @@ Local command:
 pwsh .\scripts\run_i4_r01_path_ooc_impl.ps1
 ```
 
-Status: VERIFYING. Corrected parity is closed; this real-XPM U50 implementation is now the only remaining I4 gate.
+Status: COMPLETE. Real-XPM U50 OOC at integration commit `9934fba3144bc33bcfaffda111bd544941489a2f` fully routes at 6.400 ns with synth WNS +2.310 ns, routed WNS +0.827 ns, TNS 0, 19 RAMB36 + 1 RAMB18, 10 DSP and zero routing errors. See `docs/results/i4_r01_path_ooc_postroute.md`.
 
 ## 6. Unexpected real-AMU contract discovery and correction
 
@@ -197,6 +197,10 @@ The remaining evidence is deliberately local because it uses the pinned private 
 - CL2EX II=1 optimization;
 - board/live-exchange latency claim.
 
-## 10. Claim limits
+## 10. I4 closure
+
+I4 is complete. Functional byte parity and physical U50 OOC are both closed at their stated evidence layers. PR #3 may be merged after exact-head CI remains green.
+
+## 11. Claim limits
 
 I4 closes the focused order-to-R01 risk boundary only after both corrected local gates pass. Routed OOC timing is not packet latency. XSim byte parity is not board traffic. Full network/PCS-PMA timing and physical end-to-end latency remain later phases.
