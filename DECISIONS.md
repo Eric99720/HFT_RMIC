@@ -218,6 +218,21 @@ The HFT_RMIC AMU CI stub and all order-store setup tests must reproduce this con
 
 ---
 
+## D-20260918-16 — Close the focused risk-to-frozen-R01 boundary on U50
+
+**Status:** Adopted; closes I4.
+
+**Decision:** Accept the focused HFT order-data → futures risk → pinned frozen R01 encoder composition as closed at both functional-byte and physical-OOC evidence layers. Preserve the I4 architecture as the insertion boundary for I5 rather than reopening the encoder/risk contract.
+
+**Why:** Corrected XSim proves exact 80-byte R01 parity for ordinary and prebuild accepted orders and zero integrated R01 bytes on kill-switch reject. The real-XPM U50 OOC composition fully routes at 156.25 MHz / 6.400 ns with synth WNS `+2.310 ns`, placed WNS `+0.966 ns`, routed WNS `+0.827 ns`, TNS `0`, and zero routing errors. The routed worst path remains inside the frozen AMU rather than policy, dual-source arbitration, shared CL/EX ownership or frozen encoder logic.
+
+**Resources:** 5,596 LUT, 4,454 FF, 128 LUTRAM, 19 RAMB36, 1 RAMB18 and 10 DSP. Vectorless Vivado estimate is 2.365 W total on-chip power.
+
+**Evidence:** `docs/results/i4_r01_byte_parity_xsim.md`; `docs/results/i4_r01_path_ooc_postroute.md`; packages `HFT_RMIC_i4_r01_parity_xsim_20260918-125059.zip` and `HFT_RMIC_i4_r01_path_ooc_impl_20260918-134618.zip`.
+
+**Claim limit:** I4 does not establish the full dual-XGMII top timing or market-packet-to-wire latency. It also does not establish board/QSFP latency, TAIFEX SPAN, live-exchange interoperability, or exchange conformance. I5 must integrate this closed boundary into the pinned full-system hierarchy and remeasure the combined top.
+
+---
 ## Decision format for future entries
 
 Each new decision should record:
