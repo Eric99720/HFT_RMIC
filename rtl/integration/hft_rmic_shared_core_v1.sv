@@ -21,7 +21,8 @@ module hft_rmic_shared_core_v1 #(
     parameter integer PRODUCT_MAP_ENTRIES = 16,
     parameter integer ACCOUNT_MAP_INDEX_W = (ACCOUNT_MAP_ENTRIES <= 1) ? 1 : $clog2(ACCOUNT_MAP_ENTRIES),
     parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES),
-    parameter integer ENABLE_HOT_MAP_CACHE = 0
+    parameter integer ENABLE_HOT_MAP_CACHE = 0,
+    parameter integer ENABLE_PARALLEL_CL_ADMISSION = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -224,7 +225,8 @@ module hft_rmic_shared_core_v1 #(
         .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(QTY_W),
         .ACCOUNT_MAP_ENTRIES(ACCOUNT_MAP_ENTRIES),
         .PRODUCT_MAP_ENTRIES(PRODUCT_MAP_ENTRIES),
-        .ENABLE_HOT_MAP_CACHE(ENABLE_HOT_MAP_CACHE)
+        .ENABLE_HOT_MAP_CACHE(ENABLE_HOT_MAP_CACHE),
+        .ENABLE_PARALLEL_ADMISSION(ENABLE_PARALLEL_CL_ADMISSION)
     ) u_order_gate (
         .clk(clk), .rst_n(rst_n),
         .integration_ready(effective_integration_ready),
