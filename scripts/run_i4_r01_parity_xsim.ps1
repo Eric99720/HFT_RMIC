@@ -63,12 +63,13 @@ try {
     try {
         try {
             Write-Host "[HFT_RMIC] Compiling I4 frozen R01 parity simulation..."
+            # Functional XSim uses the behavioral RAM fallbacks for both the frozen AMU bank RAM and the integration-owned futures-state RAM. The real U50 OOC flow intentionally does not define these macros and therefore still instantiates XPM block RAM.
             # xvlog/xelab/xsim create their own native *.log files in the run
             # directory.  Never Tee stdout back into those same filenames on
             # Windows: the simulator opens them itself and the second writer can
             # fail with a file-lock collision.  Capture console output under
             # distinct names while preserving the native logs for diagnosis.
-            & $xvlog -sv -d AMU_BEHAVIORAL_RAM @includeArgs @sources 2>&1 | Tee-Object -FilePath "xvlog_console.log"
+            & $xvlog -sv -d AMU_BEHAVIORAL_RAM -d HFT_RMIC_BEHAVIORAL_RAM @includeArgs @sources 2>&1 | Tee-Object -FilePath "xvlog_console.log"
             if ($LASTEXITCODE -ne 0) { throw "xvlog failed with exit code $LASTEXITCODE" }
 
             & $xelab tb_hft_rmic_i4_r01_byte_parity -s hft_rmic_i4_r01_parity_sim --debug typical 2>&1 | Tee-Object -FilePath "xelab_console.log"
