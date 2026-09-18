@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "record_revision": "2026-09-18-i5-full-system-prepared-v1",
-  "observed_at_utc": "2026-09-18T06:20:00Z",
+  "record_revision": "2026-09-18-i5-bidirectional-xsim-ready-v1",
+  "observed_at_utc": "2026-09-18T06:40:00Z",
   "goal": "Integrate the frozen dual-XGMII HFT baseline with the frozen RMIC M5.4 transactional core without modifying either upstream, while closing TAIFEX futures accounting, execution idempotency, safety-policy, timing, and end-to-end validation gaps.",
-  "handoff": "I5 full dual-XGMII integration source and local verification flows are prepared. The integration-owned hierarchy preserves frozen network/TCP/session/replay ownership, routes both R01 producers through the closed I4 risk boundary, aligns committed R02/R32 futures metadata by msg_type+order_id+report_seq, and queues committed execution pulses before the serialized shared risk core. Exact-head governance and unit regressions pass; the remaining I5 gates require local compilation/simulation and U50 implementation against the pinned private upstreams.",
-  "next_action": "Run the packaged I5 dual-XGMII functional XSim first. After its ZIP is reviewed, run the real-XPM U50 dual-XGMII OOC implementation; use those results to fix/close I5 functional and physical integration before measuring a new latency baseline.",
+  "handoff": "I5 source-level and unit-level integration is closed for the derived hierarchy and committed-execution delivery path. Both active R01 producers are behind the I4 risk boundary; committed R02/R32 metadata is keyed, cache-overrun fail-closed, and queued before the serialized shared risk core. Full-system Scenario 10 now requires BUY OPEN market→R01, live committed R02 full fill into RMIC, and a subsequent SELL CLOSE that can pass only if the same futures state was updated. Exact-head CI is green; local pinned-source dual-XGMII XSim is the next evidence gate.",
+  "next_action": "Run the prepared I5 dual-XGMII functional XSim and upload its packaged ZIP. The run must include I5_FULL_SYSTEM_FILL_TO_CLOSE_PASS plus the overall full-system PASS marker; review/fix that result before starting the real-XPM U50 I5 OOC implementation.",
   "active_plan": "docs/exec_plans/2026-09-18-i5-full-dual-xgmii-integration.md",
-  "decision": "D-20260918-17",
+  "decision": "D-20260918-18",
   "phase": {
     "id": "I5",
     "name": "Full Dual-XGMII HFT + RMIC Integration",
@@ -21,13 +21,13 @@
   "tasks": [
     {
       "id": "I5-01",
-      "status": "VERIFYING",
+      "status": "COMPLETE",
       "title": "Create integration-owned round-chip composition with no R01 risk bypass",
       "acceptance": "Pinned HFT decoder/order-book/strategy/session modules are reused without upstream edits; ordinary and prebuild order producers both enter the closed I4 risk boundary before the frozen session encoder."
     },
     {
       "id": "I5-02",
-      "status": "VERIFYING",
+      "status": "COMPLETE",
       "title": "Feed committed R02/R32/R03 lifecycle into the shared futures risk core",
       "acceptance": "Only frozen committed/de-duplicated report events mutate risk state; PositionEffect/before_qty sideband metadata are aligned with the committed report and duplicate/replay/gap behavior remains owned by frozen HFT."
     },
@@ -176,6 +176,12 @@
       "evidence": "rtl/integration/hft_rmic_dual_xgmii_full_system_top_v1.sv",
       "id": "I5-FULL-COMPOSITION-PREPARED",
       "summary": "Integration-owned risk-aware round-chip, trading-port XGMII and dual-XGMII derivatives plus frozen-regression XSim and real-XPM OOC runners are prepared; local private-upstream Vivado evidence remains pending."
+    },
+    {
+      "date": "2026-09-18",
+      "evidence": "tb/tb_hft_rmic_dual_xgmii_full_system.sv",
+      "id": "I5-BIDIRECTIONAL-RISK-LOOP-READY",
+      "summary": "I5 full-system Scenario 10 is prepared to prove BUY OPEN market-to-R01, committed live R02 full fill into the shared futures state, and a subsequent SELL CLOSE that depends on that fill; XSim evidence remains pending."
     }
   ]
 }
