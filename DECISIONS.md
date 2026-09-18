@@ -204,6 +204,20 @@ The HFT_RMIC AMU CI stub and all order-store setup tests must reproduce this con
 
 ---
 
+## D-20260918-15 — Preserve frozen R01 bytes across the focused risk boundary
+
+**Status:** Adopted; closes I4-03 functional byte parity.
+
+**Decision:** Keep the frozen HFT 256-bit order payload immutable across risk admission and feed the accepted original payload into the pinned frozen `financial_protocol_encoder`. Both the ordinary bridge producer and the R01-prebuild producer are covered by this same rule. Risk rejection must emit no R01 traffic.
+
+**Why:** The corrected local Vivado/XSim A/B test instantiates a direct frozen-encoder baseline and a risk-integrated frozen encoder with identical R01 metadata. Both accepted producer classes produce complete 80-byte payloads that are bit-for-bit identical to the direct baseline, while a kill-switch reject produces zero integrated R01 bytes. This closes the protocol-byte-preservation question without changing the frozen encoder.
+
+**Evidence:** `docs/results/i4_r01_byte_parity_xsim.md`; package `HFT_RMIC_i4_r01_parity_xsim_20260918-125059.zip`; integration commit `8c8733e57f70eb752d55ddbecae8ec6018ecb614`.
+
+**Verification boundary:** XSim uses behavioral synchronous-memory fallbacks for AMU bank storage and futures-state RAM. This decision establishes functional R01 byte parity, not physical BRAM mapping, routed timing, board packet behavior, or packet latency. I4-04 remains the real-XPM U50 physical gate.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:
