@@ -64,6 +64,10 @@ module hft_rmic_xgmii_network_layer_e2e_top_v1 #(
     input  wire [255:0]           risk_order_type_allow_mask,
     input  wire [255:0]           risk_tif_allow_mask,
     input  wire [255:0]           risk_position_effect_allow_mask,
+    // Integration-owned futures order metadata. Frozen HFT hard-coded OPEN
+    // at this wrapper layer; I5 exposes the field so full-system validation
+    // and later host control can exercise OPEN/CLOSE without upstream edits.
+    input  wire [7:0]             cfg_position_effect,
     input  wire                   risk_account_cfg_we,
     input  wire [3:0]             risk_account_cfg_index,
     input  wire                   risk_account_cfg_valid,
@@ -799,7 +803,7 @@ module hft_rmic_xgmii_network_layer_e2e_top_v1 #(
         .l40_cancel_order_sec(8'h00),
         .l60_status_code(8'h00),
         .cfg_time_in_force(8'h00),
-        .cfg_position_effect(8'h4f),
+        .cfg_position_effect(cfg_position_effect),
         .cfg_investor_flag(8'h41),
         .cfg_investor_acno(32'h0012d687),
         .cfg_order_id_base(32'h00000001),
