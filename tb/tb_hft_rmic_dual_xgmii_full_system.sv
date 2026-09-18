@@ -1922,6 +1922,7 @@ module tb_hft_rmic_dual_xgmii_full_system #(
         reg [7:0] market_xor;
         integer commit_before;
         integer hot_before;
+        integer reject_before;
         integer wait_cycles;
         integer i;
         begin
@@ -1929,10 +1930,24 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             app_before = app_tx_count;
             commit_before = market_cdc_commit_count;
             hot_before = market_hot_commit_count;
-            // Make the first snapshot an effective canonical-book change and
-            // send the exact same snapshot again. This proves one decision for
-            // the new state and no duplicate for its unchanged repetition.
-            market_payload[64] = (market_payload[64] == 8'h05) ? 8'h06 : 8'h05;
+            reject_before = risk_reject_count;
+
+            // Keep this CDC/dedup regression independent of whichever market
+            // state and PositionEffect the preceding scenario left behind.
+            // Scenario 10 ends with PositionEffect=CLOSE and a SELL-close
+            // snapshot; the old helper only toggled one ask byte, which could
+            // create a crossed book or a CLOSE order with no matching position.
+            // Build a deterministic, non-crossed SELL-only snapshot and use
+            // OPEN so the risk gate cannot reject it for close-position state.
+            cfg_position_effect = 8'h4f; // OPEN
+            market_payload[51] = 8'h10;
+            market_payload[52] = 8'h41; // bid 1041 > close(1020)+threshold(10)
+            market_payload[63] = 8'h10;
+            market_payload[64] = 8'h50; // ask 1050, so book remains non-crossed
+
+            // Send the exact same snapshot twice. The first must create one
+            // canonical-book change/order; the second must commit through CDC
+            // but produce no duplicate R01.
             market_xor = 8'h00;
             for (i = 1; i < 70; i = i + 1)
                 market_xor = market_xor ^ market_payload[i];
@@ -1951,13 +1966,16 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             if ((market_cdc_commit_count !== (commit_before + 2)) ||
                 (app_tx_count !== (app_before + 1)) ||
                 (tx_next_seq !== (tx_before + r01_len)) ||
+                (risk_reject_count !== reject_before) ||
                 market_cdc_overflow_sticky) begin
-                $display("TEST_FAIL: %s axis_last=%0d hot_commits=%0d/%0d hot_squash=%0d cdc_commits=%0d/%0d app=%0d/%0d tx=0x%08x/0x%08x cdc_overflow=%0d last_hot_error=0x%02x",
+                $display("TEST_FAIL: %s axis_last=%0d hot_commits=%0d/%0d hot_squash=%0d cdc_commits=%0d/%0d app=%0d/%0d tx=0x%08x/0x%08x risk_reject_delta=%0d reject_src=%0d reject_code=0x%02x cdc_overflow=%0d last_hot_error=0x%02x",
                          label, market_axis_last_count,
                          market_hot_commit_count, hot_before + 2, market_hot_squash_count,
                          market_cdc_commit_count, commit_before + 2,
                          app_tx_count, app_before + 1,
                          tx_next_seq, tx_before + r01_len,
+                         risk_reject_count - reject_before,
+                         risk_reject_reason_source, risk_reject_reason_code,
                          market_cdc_overflow_sticky, market_hot_error_code);
                 $finish;
             end
