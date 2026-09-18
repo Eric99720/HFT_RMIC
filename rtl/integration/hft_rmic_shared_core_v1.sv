@@ -20,7 +20,8 @@ module hft_rmic_shared_core_v1 #(
     parameter integer ACCOUNT_MAP_ENTRIES = 16,
     parameter integer PRODUCT_MAP_ENTRIES = 16,
     parameter integer ACCOUNT_MAP_INDEX_W = (ACCOUNT_MAP_ENTRIES <= 1) ? 1 : $clog2(ACCOUNT_MAP_ENTRIES),
-    parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES)
+    parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES),
+    parameter integer ENABLE_HOT_MAP_CACHE = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -47,6 +48,8 @@ module hft_rmic_shared_core_v1 #(
     input  wire product_cfg_valid,
     input  wire [15:0] product_cfg_key,
     input  wire [7:0] product_cfg_value,
+    input  wire [31:0] hot_account_key,
+    input  wire [15:0] hot_product_key,
 
     // Host/recovery state configuration.
     input  wire cfg_valid,
@@ -220,7 +223,8 @@ module hft_rmic_shared_core_v1 #(
     hft_rmic_order_gate_v1 #(
         .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(QTY_W),
         .ACCOUNT_MAP_ENTRIES(ACCOUNT_MAP_ENTRIES),
-        .PRODUCT_MAP_ENTRIES(PRODUCT_MAP_ENTRIES)
+        .PRODUCT_MAP_ENTRIES(PRODUCT_MAP_ENTRIES),
+        .ENABLE_HOT_MAP_CACHE(ENABLE_HOT_MAP_CACHE)
     ) u_order_gate (
         .clk(clk), .rst_n(rst_n),
         .integration_ready(effective_integration_ready),
@@ -233,6 +237,7 @@ module hft_rmic_shared_core_v1 #(
         .product_cfg_we(gate_product_cfg_we), .product_cfg_index(product_cfg_index),
         .product_cfg_valid(product_cfg_valid), .product_cfg_key(product_cfg_key),
         .product_cfg_value(product_cfg_value),
+        .hot_account_key(hot_account_key), .hot_product_key(hot_product_key),
         .order_valid(cl_order_valid_i), .order_ready(cl_order_ready), .order_data(order_data),
         .result_valid(cl_result_valid), .result_ready(cl_result_ready),
         .result_accepted(cl_result_accepted), .result_reason_source(cl_result_reason_source),

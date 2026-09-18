@@ -12,7 +12,8 @@ module hft_rmic_order_gate_v1 #(
     parameter integer PRODUCT_MAP_ENTRIES = 16,
     parameter integer ACCOUNT_MAP_INDEX_W = (ACCOUNT_MAP_ENTRIES <= 1) ? 1 : $clog2(ACCOUNT_MAP_ENTRIES),
     parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES),
-    parameter integer QTY_W = 16
+    parameter integer QTY_W = 16,
+    parameter integer ENABLE_HOT_MAP_CACHE = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -37,6 +38,8 @@ module hft_rmic_order_gate_v1 #(
     input  wire                         product_cfg_valid,
     input  wire [15:0]                  product_cfg_key,
     input  wire [7:0]                   product_cfg_value,
+    input  wire [31:0]                  hot_account_key,
+    input  wire [15:0]                  hot_product_key,
 
     input  wire                         order_valid,
     output wire                         order_ready,
@@ -96,27 +99,36 @@ module hft_rmic_order_gate_v1 #(
     wire product_map_ambiguous;
     wire [7:0] product_map_value;
 
-    configurable_exact_map #(
-        .KEY_W(32), .VALUE_W(8), .ENTRIES(ACCOUNT_MAP_ENTRIES)
-    ) u_account_map (
-        .clk(clk), .rst_n(rst_n),
-        .cfg_we(account_cfg_we), .cfg_index(account_cfg_index),
-        .cfg_valid(account_cfg_valid), .cfg_key(account_cfg_key),
-        .cfg_value(account_cfg_value),
-        .lookup_key(investor_account), .lookup_hit(account_map_hit),
-        .lookup_ambiguous(account_map_ambiguous), .lookup_value(account_map_value)
-    );
+    wire account_cache_ready;
+    wire product_cache_ready;
 
-    configurable_exact_map #(
-        .KEY_W(16), .VALUE_W(8), .ENTRIES(PRODUCT_MAP_ENTRIES)
-    ) u_product_map (
-        .clk(clk), .rst_n(rst_n),
-        .cfg_we(product_cfg_we), .cfg_index(product_cfg_index),
-        .cfg_valid(product_cfg_valid), .cfg_key(product_cfg_key),
-        .cfg_value(product_cfg_value),
-        .lookup_key(symbol_slot), .lookup_hit(product_map_hit),
-        .lookup_ambiguous(product_map_ambiguous), .lookup_value(product_map_value)
-    );
+    generate
+        if (ENABLE_HOT_MAP_CACHE != 0) begin : g_hot_map_cache
+            hft_rmic_cached_exact_map_v1 #(.KEY_W(32),.VALUE_W(8),.ENTRIES(ACCOUNT_MAP_ENTRIES),.INDEX_W(ACCOUNT_MAP_INDEX_W)) u_account_map (
+                .clk(clk),.rst_n(rst_n),.cfg_we(account_cfg_we),.cfg_index(account_cfg_index),
+                .cfg_valid(account_cfg_valid),.cfg_key(account_cfg_key),.cfg_value(account_cfg_value),
+                .hot_key(hot_account_key),.lookup_key(investor_account),.cache_ready(account_cache_ready),
+                .lookup_hit(account_map_hit),.lookup_ambiguous(account_map_ambiguous),.lookup_value(account_map_value));
+            hft_rmic_cached_exact_map_v1 #(.KEY_W(16),.VALUE_W(8),.ENTRIES(PRODUCT_MAP_ENTRIES),.INDEX_W(PRODUCT_MAP_INDEX_W)) u_product_map (
+                .clk(clk),.rst_n(rst_n),.cfg_we(product_cfg_we),.cfg_index(product_cfg_index),
+                .cfg_valid(product_cfg_valid),.cfg_key(product_cfg_key),.cfg_value(product_cfg_value),
+                .hot_key(hot_product_key),.lookup_key(symbol_slot),.cache_ready(product_cache_ready),
+                .lookup_hit(product_map_hit),.lookup_ambiguous(product_map_ambiguous),.lookup_value(product_map_value));
+        end else begin : g_direct_map
+            configurable_exact_map #(.KEY_W(32),.VALUE_W(8),.ENTRIES(ACCOUNT_MAP_ENTRIES)) u_account_map (
+                .clk(clk),.rst_n(rst_n),.cfg_we(account_cfg_we),.cfg_index(account_cfg_index),
+                .cfg_valid(account_cfg_valid),.cfg_key(account_cfg_key),.cfg_value(account_cfg_value),
+                .lookup_key(investor_account),.lookup_hit(account_map_hit),
+                .lookup_ambiguous(account_map_ambiguous),.lookup_value(account_map_value));
+            configurable_exact_map #(.KEY_W(16),.VALUE_W(8),.ENTRIES(PRODUCT_MAP_ENTRIES)) u_product_map (
+                .clk(clk),.rst_n(rst_n),.cfg_we(product_cfg_we),.cfg_index(product_cfg_index),
+                .cfg_valid(product_cfg_valid),.cfg_key(product_cfg_key),.cfg_value(product_cfg_value),
+                .lookup_key(symbol_slot),.lookup_hit(product_map_hit),
+                .lookup_ambiguous(product_map_ambiguous),.lookup_value(product_map_value));
+            assign account_cache_ready = 1'b1;
+            assign product_cache_ready = 1'b1;
+        end
+    endgenerate
 
     wire [31:0] normalized_order_id;
     wire [7:0] normalized_account_id;
@@ -195,7 +207,8 @@ module hft_rmic_order_gate_v1 #(
     );
 
     wire admission_order_ready;
-    wire config_quiet = !account_cfg_we && !product_cfg_we;
+    wire config_quiet = !account_cfg_we && !product_cfg_we &&
+                        account_cache_ready && product_cache_ready;
     assign order_ready = admission_order_ready && config_quiet;
 
     hft_rmic_cl2ex_admission_v1 #(
