@@ -701,7 +701,7 @@ module hft_rmic_xgmii_network_layer_e2e_top_v1 #(
         .rx_meta_arp_target_ip(rx_meta_arp_target_ip)
     );
 
-    hft_axis_reverse_byte_order_64_e2e u_market_byte_order_adapter (
+    hft_rmic_axis_reverse_byte_order_64_e2e_v1 u_market_byte_order_adapter (
         .s_valid(net_market_valid),
         .s_ready(net_market_ready),
         .s_data(net_market_data),
@@ -714,7 +714,7 @@ module hft_rmic_xgmii_network_layer_e2e_top_v1 #(
         .m_last(round_market_last)
     );
 
-    hft_axis_reverse_byte_order_64_e2e u_spec_market_byte_order_adapter (
+    hft_rmic_axis_reverse_byte_order_64_e2e_v1 u_spec_market_byte_order_adapter (
         .s_valid(selected_spec_market_valid),
         .s_ready(net_spec_market_ready_unused),
         .s_data(selected_spec_market_data),
@@ -727,7 +727,7 @@ module hft_rmic_xgmii_network_layer_e2e_top_v1 #(
         .m_last(round_spec_market_last)
     );
 
-    hft_axis_reverse_byte_order_64_e2e u_order_byte_order_adapter (
+    hft_rmic_axis_reverse_byte_order_64_e2e_v1 u_order_byte_order_adapter (
         .s_valid(net_order_valid),
         .s_ready(net_order_ready),
         .s_data(net_order_data),
@@ -1361,7 +1361,7 @@ module hft_rmic_xgmii_network_layer_e2e_top_v1 #(
     );
 endmodule
 
-module hft_axis_reverse_byte_order_64_e2e (
+module hft_rmic_axis_reverse_byte_order_64_e2e_v1 (
     input  wire        s_valid,
     output wire        s_ready,
     input  wire [63:0] s_data,
