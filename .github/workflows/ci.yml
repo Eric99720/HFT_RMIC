@@ -86,3 +86,6 @@ jobs:
 
       - name: Run I5 committed execution FIFO regression
         run: bash scripts/run_i5_exec_commit_fifo_iverilog.sh
+
+      - name: Run I5 speculative order dedupe regression
+        run: bash scripts/run_i5_spec_order_dedupe_iverilog.sh

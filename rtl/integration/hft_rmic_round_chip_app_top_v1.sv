@@ -646,10 +646,40 @@ module hft_rmic_round_chip_app_top_v1 #(
                                                    spec_shadow_lookahead_symbol : spec_shadow_symbol;
     wire [3:0] spec_prebuild_type = spec_shadow_lookahead_valid ?
                                     spec_shadow_lookahead_type : spec_shadow_type;
-    wire prebuild_direct_valid = ENABLE_R01_PREBUILD && ENABLE_SPECULATIVE_APP_PATH &&
-                                 spec_prebuild_decision_valid &&
-                                 (spec_release_pending || spec_commit_seen || spec_market_commit);
+    wire prebuild_raw_valid = ENABLE_R01_PREBUILD && ENABLE_SPECULATIVE_APP_PATH &&
+                              spec_prebuild_decision_valid &&
+                              (spec_release_pending || spec_commit_seen || spec_market_commit);
+    wire prebuild_direct_valid;
+    wire prebuild_duplicate_block;
     wire prebuild_direct_accept = risk_prebuild_accept;
+    wire prebuild_decision_consumed = prebuild_direct_accept || prebuild_duplicate_block;
+
+    // Back-to-back committed market packets can overlap the canonical-book
+    // update latency. The frozen speculative strategy may therefore recreate
+    // the same order from the same market state before canonical state catches
+    // up. Suppress only an identical consecutive speculative order key; a
+    // changed side/price/qty/type/TIF/PositionEffect remains a new decision.
+    hft_rmic_spec_order_dedupe_v1 #(
+        .SYMBOL_WIDTH(SYMBOL_WIDTH),
+        .PRICE_WIDTH(PRICE_WIDTH),
+        .QTY_WIDTH(QTY_WIDTH),
+        .TYPE_WIDTH(4)
+    ) u_i5_spec_order_dedupe (
+        .clk(clk),
+        .rst_n(rst_n),
+        .clear(risk_recovery_clear),
+        .s_valid(prebuild_raw_valid),
+        .s_symbol(spec_prebuild_symbol),
+        .s_side(spec_prebuild_side),
+        .s_price(spec_prebuild_price),
+        .s_qty(spec_prebuild_qty),
+        .s_type(spec_prebuild_type),
+        .s_tif(cfg_time_in_force),
+        .s_position_effect(cfg_position_effect),
+        .m_valid(prebuild_direct_valid),
+        .m_accept(risk_prebuild_accept),
+        .duplicate_blocked(prebuild_duplicate_block)
+    );
     // When R01 prebuild is active, the speculative shadow decision is the
     // sole order-intent owner. The canonical dummy strategy is deliberately
     // drained but never forwarded to the bridge; it is level-sensitive to a
@@ -692,12 +722,12 @@ module hft_rmic_round_chip_app_top_v1 #(
                 if (spec_market_commit)
                     spec_commit_seen <= 1'b1;
                 if ((spec_commit_seen || spec_market_commit) && spec_shadow_pending && spec_prebuild_decision_valid) begin
-                    spec_release_pending <= ENABLE_R01_PREBUILD ? !prebuild_direct_accept : 1'b1;
+                    spec_release_pending <= ENABLE_R01_PREBUILD ? !prebuild_decision_consumed : 1'b1;
                     spec_commit_seen <= 1'b0;
-                    if (ENABLE_R01_PREBUILD && prebuild_direct_accept)
+                    if (ENABLE_R01_PREBUILD && prebuild_decision_consumed)
                         suppress_legacy_pending <= 1'b1;
                 end
-                if (spec_release_pending && (ENABLE_R01_PREBUILD ? prebuild_direct_accept : bridge_order_intent_ready)) begin
+                if (spec_release_pending && (ENABLE_R01_PREBUILD ? prebuild_decision_consumed : bridge_order_intent_ready)) begin
                     spec_release_pending <= 1'b0;
                     suppress_legacy_pending <= 1'b1;
                 end

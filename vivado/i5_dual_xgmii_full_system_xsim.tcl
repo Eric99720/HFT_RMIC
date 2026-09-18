@@ -48,6 +48,7 @@ set integration_sources [list \
     [file join $root "rtl" "integration" "hft_rmic_dual_order_source_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_committed_exec_event_adapter_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_exec_commit_fifo_v1.sv"] \
+    [file join $root "rtl" "integration" "hft_rmic_spec_order_dedupe_v1.v"] \
     [file join $root "rtl" "integration" "hft_rmic_rx_order_book_top_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_round_chip_app_top_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_xgmii_network_layer_e2e_top_v1.sv"] \

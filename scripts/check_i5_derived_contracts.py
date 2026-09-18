@@ -20,6 +20,7 @@ checks = {
         "hft_rmic_rx_order_book_top_v1",
         "hft_rmic_dual_order_source_v1",
         "hft_rmic_exec_commit_fifo_v1",
+        "hft_rmic_spec_order_dedupe_v1",
         "hft_rmic_shared_core_v1",
         "financial_protocol_encoder_session_top",
     ],
@@ -58,6 +59,8 @@ if "wire prebuild_direct_accept = risk_prebuild_accept;" not in app:
     errors.append("I5 prebuild acceptance is not owned by the risk boundary")
 if "risk_exec_queue_overflow" not in app or "execq_overflow_sticky" not in app:
     errors.append("I5 app lacks fail-closed committed-execution FIFO overflow path")
+if "hft_rmic_spec_order_dedupe_v1" not in app or "prebuild_duplicate_block" not in app:
+    errors.append("I5 app lacks back-to-back speculative order duplicate guard")
 
 net = (root / "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv").read_text(encoding="utf-8")
 if "hft_round_chip_app_top #(" in net:
