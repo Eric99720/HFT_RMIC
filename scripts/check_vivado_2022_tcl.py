@@ -83,7 +83,11 @@ if i5_ooc.exists():
         "place_design -directive AltSpreadLogic_high",
         "phys_opt_design -directive AggressiveExplore",
         "route_design -directive AlternateCLBRouting",
+        "route_design -directive NoTimingRelaxation",
+        "route_design -directive MoreGlobalIterations",
+        "route_design -directive HigherDelayCost",
         "HFT_RMIC_I5_PRE_POSTROUTE_WNS",
+        "HFT_RMIC_I5_PRE_TIMING_RETRY_WNS",
     ):
         if token not in text:
             errors.append(f"i5_dual_xgmii_full_system_ooc.tcl: missing congestion/timing-closure token: {token}")

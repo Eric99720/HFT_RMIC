@@ -103,8 +103,11 @@ phys_opt_design -directive AggressiveExplore
 route_design -directive AlternateCLBRouting
 
 # If the congestion-oriented route is still slightly negative, give post-route
-# physical optimization the real routed delays, then re-enter the alternate
-# router using the existing routing as its starting point.
+# physical optimization the real routed delays.  The 2026-09-19 I5 run reduced
+# WNS to only -0.030 ns and the remaining endpoints moved entirely into the
+# pinned HFT RX/market paths; the integration risk and TX timing cuts are no
+# longer critical.  At that point this is a router-closure problem, not a
+# justification for adding another pipeline stage.
 set pre_postroute_paths [get_timing_paths -delay_type max -max_paths 1]
 if {[llength $pre_postroute_paths] > 0} {
     set pre_postroute_wns [get_property SLACK [lindex $pre_postroute_paths 0]]
@@ -112,9 +115,43 @@ if {[llength $pre_postroute_paths] > 0} {
     if {$pre_postroute_wns < 0.0} {
         puts "HFT_RMIC_I5_POST_ROUTE_PHYSOPT_TRIGGER=1"
         phys_opt_design -directive Explore
-        route_design -directive AlternateCLBRouting
+        route_design -directive AlternateCLBRouting -timing_summary
     } else {
         puts "HFT_RMIC_I5_POST_ROUTE_PHYSOPT_TRIGGER=0"
+    }
+}
+
+# A fully-routed design can be re-entered into route_design; Vivado rip-up and
+# re-routes only timing-critical portions.  For the residual tens-of-picoseconds
+# miss, use timing-focused router modes before declaring failure.  These passes
+# do not change RTL or architectural latency.
+set closure_paths [get_timing_paths -delay_type max -max_paths 1]
+if {[llength $closure_paths] > 0} {
+    set closure_wns [get_property SLACK [lindex $closure_paths 0]]
+    puts "HFT_RMIC_I5_PRE_TIMING_RETRY_WNS=$closure_wns"
+
+    if {$closure_wns < 0.0} {
+        puts "HFT_RMIC_I5_ROUTE_RETRY=NoTimingRelaxation"
+        route_design -directive NoTimingRelaxation -timing_summary
+        set closure_paths [get_timing_paths -delay_type max -max_paths 1]
+        set closure_wns [get_property SLACK [lindex $closure_paths 0]]
+        puts "HFT_RMIC_I5_AFTER_NOTIMINGRELAX_WNS=$closure_wns"
+    }
+
+    if {$closure_wns < 0.0} {
+        puts "HFT_RMIC_I5_ROUTE_RETRY=MoreGlobalIterations"
+        route_design -directive MoreGlobalIterations -timing_summary
+        set closure_paths [get_timing_paths -delay_type max -max_paths 1]
+        set closure_wns [get_property SLACK [lindex $closure_paths 0]]
+        puts "HFT_RMIC_I5_AFTER_MOREGLOBAL_WNS=$closure_wns"
+    }
+
+    if {$closure_wns < 0.0} {
+        puts "HFT_RMIC_I5_ROUTE_RETRY=HigherDelayCost"
+        route_design -directive HigherDelayCost -timing_summary
+        set closure_paths [get_timing_paths -delay_type max -max_paths 1]
+        set closure_wns [get_property SLACK [lindex $closure_paths 0]]
+        puts "HFT_RMIC_I5_AFTER_HIGHERDELAY_WNS=$closure_wns"
     }
 }
 
