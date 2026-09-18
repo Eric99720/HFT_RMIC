@@ -24,6 +24,9 @@ initial begin
  if(risk_commit_valid || !metadata_error) fail("metadata mismatch did not fail closed");
  $display("I5_COMMITTED_METADATA_MISMATCH_PASS");
  @(posedge clk); @(negedge clk); committed_valid=0;
+ // A production mismatch escalates recovery-required. Reset here so the
+ // remaining unit scenarios exercise independent cache states.
+ rst_n=0; repeat(2) @(posedge clk); @(negedge clk); rst_n=1;
 
  // Replay R32 uses replay metadata rather than stale live metadata.
  @(negedge clk); replay_meta_msg_type=`HFT_RMIC_TAIFEX_MSG_R32; replay_meta_order_id=300; replay_meta_report_seq=99; replay_meta_position_effect=8'h43; replay_meta_before_qty=4; replay_meta_valid=1;
