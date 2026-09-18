@@ -83,21 +83,46 @@ puts "HFT_RMIC_I5_BRAM18_COUNT=$bram18_count"
 if {[expr {$bram36_count + $bram18_count}] == 0} { error "I5 full-system block-RAM gate failed" }
 
 opt_design
-place_design
+
+# The first real I5 routed run met placement timing (+0.200 ns) but failed
+# routing at -0.261 ns with Vivado reporting level-5 global/short congestion.
+# Use AMD's congestion-oriented UltraScale flow: spread logic during placement,
+# run aggressive post-place physical optimization, then use the alternate CLB
+# router so the implementation does not collapse into the same congested
+# trading-clock region.
+place_design -directive AltSpreadLogic_high
 report_utilization -hierarchical -file [file join $out_dir "utilization_placed.rpt"]
 report_timing_summary -delay_type max -max_paths 50 -file [file join $out_dir "timing_summary_placed.rpt"]
 write_checkpoint -force [file join $out_dir "i5_dual_xgmii_placed.dcp"]
 set pp [get_timing_paths -delay_type max -max_paths 1]
 if {[llength $pp] > 0} { puts "HFT_RMIC_I5_PLACED_WNS=[get_property SLACK [lindex $pp 0]]" }
 
-phys_opt_design
-route_design
+phys_opt_design -directive AggressiveExplore
+route_design -directive AlternateCLBRouting
+
+# If the congestion-oriented route is still slightly negative, give post-route
+# physical optimization the real routed delays, then re-enter the alternate
+# router using the existing routing as its starting point.
+set pre_postroute_paths [get_timing_paths -delay_type max -max_paths 1]
+if {[llength $pre_postroute_paths] > 0} {
+    set pre_postroute_wns [get_property SLACK [lindex $pre_postroute_paths 0]]
+    puts "HFT_RMIC_I5_PRE_POSTROUTE_WNS=$pre_postroute_wns"
+    if {$pre_postroute_wns < 0.0} {
+        puts "HFT_RMIC_I5_POST_ROUTE_PHYSOPT_TRIGGER=1"
+        phys_opt_design -directive Explore
+        route_design -directive AlternateCLBRouting
+    } else {
+        puts "HFT_RMIC_I5_POST_ROUTE_PHYSOPT_TRIGGER=0"
+    }
+}
+
 report_utilization -hierarchical -file [file join $out_dir "utilization_routed.rpt"]
 report_ram_utilization -file [file join $out_dir "ram_utilization_routed.rpt"]
 report_timing_summary -delay_type max -max_paths 100 -file [file join $out_dir "timing_summary_routed.rpt"]
 report_timing -delay_type max -max_paths 100 -nworst 10 -file [file join $out_dir "timing_worst.rpt"]
 report_route_status -file [file join $out_dir "route_status.rpt"]
 report_cdc -details -file [file join $out_dir "cdc_routed.rpt"]
+report_bus_skew -file [file join $out_dir "bus_skew_routed.rpt"]
 report_drc -file [file join $out_dir "drc_routed.rpt"]
 report_power -file [file join $out_dir "power_routed.rpt"]
 report_design_analysis -timing -setup -max_paths 30 -file [file join $out_dir "design_analysis_timing.rpt"]

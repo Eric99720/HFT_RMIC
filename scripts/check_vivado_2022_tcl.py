@@ -79,6 +79,14 @@ if i5_ooc.exists():
     for macro in ("AMU_BEHAVIORAL_RAM", "HFT_RMIC_BEHAVIORAL_RAM"):
         if macro in text:
             errors.append(f"i5_dual_xgmii_full_system_ooc.tcl: physical OOC must not define {macro}")
+    for token in (
+        "place_design -directive AltSpreadLogic_high",
+        "phys_opt_design -directive AggressiveExplore",
+        "route_design -directive AlternateCLBRouting",
+        "HFT_RMIC_I5_PRE_POSTROUTE_WNS",
+    ):
+        if token not in text:
+            errors.append(f"i5_dual_xgmii_full_system_ooc.tcl: missing congestion/timing-closure token: {token}")
 
 if errors:
     print("VIVADO_2022_TCL_CHECK_FAIL")
