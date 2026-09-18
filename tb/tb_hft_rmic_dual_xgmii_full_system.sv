@@ -1388,15 +1388,22 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     endtask
 
     task automatic set_r02_full_fill_payload;
+        integer i;
+        reg [7:0] sum;
         begin
             clear_bytes(r02_fill_payload);
             r02_fill_len = 133;
             r02_fill_payload[0] = 8'h00;
             r02_fill_payload[1] = 8'h82;
+            // The frozen hft_report_sequence_owner commits R02/R32 by the
+            // common TMP MsgSeqNum at bytes 2..5. Scenario 10 starts from a
+            // cold report owner, so the first live report must be sequence 1.
+            // The prior fixture incorrectly used 2 here while ReportSeq was 1,
+            // causing a GAP reject before RMIC ever saw the execution.
             r02_fill_payload[2] = 8'h00;
             r02_fill_payload[3] = 8'h00;
             r02_fill_payload[4] = 8'h00;
-            r02_fill_payload[5] = 8'h02;
+            r02_fill_payload[5] = 8'h01;
             r02_fill_payload[6] = 8'h01;
             r02_fill_payload[7] = 8'h02;
             r02_fill_payload[8] = 8'h03;
@@ -1523,7 +1530,15 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             r02_fill_payload[129] = 8'h00;
             r02_fill_payload[130] = 8'h01;
             r02_fill_payload[131] = 8'h01;
-            r02_fill_payload[132] = 8'h46;
+
+            // TMP checksum is the modulo-256 sum of every byte except the
+            // checksum byte itself. Derive it from the fixture instead of
+            // hard-coding it so sequence/field edits cannot silently create
+            // a decoder-level checksum failure.
+            sum = 8'h00;
+            for (i = 0; i < 132; i = i + 1)
+                sum = sum + r02_fill_payload[i];
+            r02_fill_payload[132] = sum;
         end
     endtask
 
@@ -1681,7 +1696,19 @@ module tb_hft_rmic_dual_xgmii_full_system #(
                 @(posedge clk);
                 guard = guard + 1;
                 if (guard > 400) begin
-                    $display("TEST_FAIL: %s no RMIC execution result", label);
+                    $display("TEST_FAIL: %s no RMIC execution result owner_last=%0d owner_err=%0d owner_code=0x%02x decoder_valid=%0d live_meta=%0d commit_meta=%0d risk_commit=%0d meta_err=%0d execq_occ=%0d queue_overflow=%0d recovery=%0d",
+                             label,
+                             dut.u_trading_core.u_round_chip_app.u_rx_order_book.u_report_sequence_owner.last_committed_seq,
+                             dut.u_trading_core.u_round_chip_app.u_rx_order_book.u_report_sequence_owner.error_valid,
+                             dut.u_trading_core.u_round_chip_app.u_rx_order_book.u_report_sequence_owner.error_code,
+                             dut.u_trading_core.u_round_chip_app.u_rx_order_book.decoder_order_valid,
+                             dut.u_trading_core.u_round_chip_app.u_rx_order_book.live_meta_valid,
+                             dut.u_trading_core.u_round_chip_app.u_rx_order_book.risk_commit_valid,
+                             dut.u_trading_core.u_round_chip_app.rx_risk_commit_valid,
+                             risk_exec_metadata_error,
+                             dut.u_trading_core.u_round_chip_app.execq_occupancy,
+                             risk_exec_queue_overflow,
+                             risk_recovery_required);
                     $finish;
                 end
             end
