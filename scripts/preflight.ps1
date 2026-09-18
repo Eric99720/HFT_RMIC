@@ -94,6 +94,14 @@ try {
             Write-Host '[HFT_RMIC] Running I5 speculative order dedupe regression...'
             & $bash.Source scripts/run_i5_spec_order_dedupe_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'I5 speculative order dedupe regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 registered risk-ingress regression...'
+            & $bash.Source scripts/run_i5_order_ingress_slice_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 registered risk-ingress regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 XGMII TX timing-derivative regression...'
+            & $bash.Source scripts/run_i5_xgmii_tx_timing_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 XGMII TX timing-derivative regression failed' }
         }
     }
 

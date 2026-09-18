@@ -1338,7 +1338,7 @@ module hft_rmic_xgmii_network_layer_e2e_top_v1 #(
         .app_packet_count(arbiter_app_packet_count_legacy)
     );
 
-    hft_xgmii_tx_encoder #(
+    hft_rmic_xgmii_tx_encoder_v1 #(
         .MAX_FRAME_BYTES(MAX_FRAME_BYTES),
         .DATA_WIDTH(DATA_WIDTH),
         .KEEP_WIDTH(KEEP_WIDTH)

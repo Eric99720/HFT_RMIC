@@ -21,6 +21,7 @@ checks = {
         "hft_rmic_dual_order_source_v1",
         "hft_rmic_exec_commit_fifo_v1",
         "hft_rmic_spec_order_dedupe_v1",
+        "hft_rmic_order_ingress_slice_v1",
         "hft_rmic_shared_core_v1",
         "financial_protocol_encoder_session_top",
     ],
@@ -28,6 +29,7 @@ checks = {
         pin,
         "module hft_rmic_xgmii_network_layer_e2e_top_v1",
         "hft_rmic_round_chip_app_top_v1",
+        "hft_rmic_xgmii_tx_encoder_v1",
     ],
     "rtl/integration/hft_rmic_dual_xgmii_full_system_top_v1.sv": [
         pin,
@@ -61,10 +63,14 @@ if "risk_exec_queue_overflow" not in app or "execq_overflow_sticky" not in app:
     errors.append("I5 app lacks fail-closed committed-execution FIFO overflow path")
 if "hft_rmic_spec_order_dedupe_v1" not in app or "prebuild_duplicate_block" not in app:
     errors.append("I5 app lacks back-to-back speculative order duplicate guard")
+if "hft_rmic_order_ingress_slice_v1" not in app or "risk_source_raw_valid" not in app:
+    errors.append("I5 app lacks registered order ingress timing cut before shared risk")
 
 net = (root / "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv").read_text(encoding="utf-8")
 if "hft_round_chip_app_top #(" in net:
     errors.append("I5 trading-port top instantiates frozen app directly instead of risk-aware app")
+if "hft_xgmii_tx_encoder #(" in net:
+    errors.append("I5 trading-port derivative still instantiates the frozen generic-padding TX encoder")
 if "module hft_axis_reverse_byte_order_64_e2e (" in net:
     errors.append("I5 trading-port derivative redefines frozen byte-order helper module name")
 if "module hft_rmic_axis_reverse_byte_order_64_e2e_v1 (" not in net:
