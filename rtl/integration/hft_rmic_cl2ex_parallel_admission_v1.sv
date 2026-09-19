@@ -25,13 +25,22 @@
 // arrives while the result consumer is ready, result_valid/result_accepted are
 // asserted in that same cycle. Backpressure automatically falls back to S_RESP
 // with a registered, stable result. Reject/rollback paths are unchanged.
+//
+// ENABLE_PROSPECTIVE_ISSUE removes the request-issue bubble on a policy-pass
+// order. While still in S_IDLE, the live normalized order may issue RESERVE
+// and INSERT in the same cycle that the order transaction is accepted. Each
+// downstream handshake is remembered independently; a blocked leg simply
+// retries from S_PARALLEL on the next cycle. Policy rejects never issue either
+// mutation. The shared-core owner lock must enable the matching prospective-CL
+// routing mode so EX still has same-cycle acquisition priority.
 module hft_rmic_cl2ex_parallel_admission_v1 #(
     parameter integer ORDER_WIDTH = 256,
     parameter integer ACCOUNT_ID_W = 8,
     parameter integer PRODUCT_ID_W = 8,
     parameter integer PRICE_W = 32,
     parameter integer QTY_W = 16,
-    parameter integer ENABLE_FAST_SUCCESS_BYPASS = 0
+    parameter integer ENABLE_FAST_SUCCESS_BYPASS = 0,
+    parameter integer ENABLE_PROSPECTIVE_ISSUE = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -143,6 +152,9 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
     assign order_ready = (state == S_IDLE);
 
     wire order_fire = order_valid && order_ready;
+    wire prospective_issue =
+        (ENABLE_PROSPECTIVE_ISSUE != 0) &&
+        (state == S_IDLE) && order_valid && order_ready && policy_pass;
     wire acct_req_fire = acct_req_valid && acct_req_ready;
     wire store_req_fire = store_req_valid && store_req_ready;
     wire acct_rsp_fire = acct_rsp_valid && acct_rsp_ready;
@@ -216,6 +228,33 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
         store_rsp_ready = 1'b0;
 
         case (state)
+            S_IDLE: begin
+                if (prospective_issue) begin
+                    // Use the live normalized order on the owner-acquisition
+                    // cycle. No transaction state is exposed externally until
+                    // both downstream mutations report success.
+                    acct_req_valid = 1'b1;
+                    acct_req_account_id = account_id;
+                    acct_req_product_id = product_id;
+                    acct_req_event_kind = `HFT_RMIC_ACCT_EVENT_RESERVE;
+                    acct_req_side = side;
+                    acct_req_position_effect = position_effect;
+                    acct_req_order_qty = qty;
+
+                    store_req_valid = 1'b1;
+                    store_req_op = STORE_INSERT;
+                    store_req_order_id = order_id;
+                    store_req_account_id = account_id;
+                    store_req_product_id = product_id;
+                    store_req_side = side;
+                    store_req_position_effect = position_effect;
+                    store_req_order_type = order_type;
+                    store_req_tif = tif;
+                    store_req_limit_price = limit_price;
+                    store_req_remaining_qty = qty;
+                end
+            end
+
             S_PARALLEL: begin
                 acct_req_valid = !acct_req_sent;
                 acct_req_event_kind = `HFT_RMIC_ACCT_EVENT_RESERVE;
@@ -297,8 +336,8 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
                         result_reason_source_q <= policy_reason_source;
                         result_reason_code_q <= policy_reason_code;
 
-                        acct_req_sent <= 1'b0;
-                        store_req_sent <= 1'b0;
+                        acct_req_sent <= prospective_issue && acct_req_fire;
+                        store_req_sent <= prospective_issue && store_req_fire;
                         acct_done <= 1'b0;
                         store_done <= 1'b0;
                         acct_ok_q <= 1'b0;
