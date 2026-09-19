@@ -23,6 +23,7 @@ checks = {
         "hft_rmic_spec_order_dedupe_v1",
         "hft_rmic_shared_core_v1",
         "ENABLE_HOT_MAP_CACHE(1)",
+        "ENABLE_PARALLEL_CL_ADMISSION(1)",
         "financial_protocol_encoder_session_top",
     ],
     "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv": [
@@ -67,6 +68,9 @@ if "u_i5_order_ingress_slice" in app or "risk_source_raw_valid" in app:
     errors.append("I5 latency-recovery app still contains the one-cycle risk ingress slice")
 if "hot_account_key(cfg_investor_acno)" not in app or "hot_product_key(cfg_symbol_slot)" not in app:
     errors.append("I5 latency-recovery app does not pre-resolve bridge-owned mapping keys")
+if "ENABLE_PARALLEL_CL_ADMISSION(1)" not in app:
+    errors.append("I5 parallel-admission candidate is not enabled in the full-system app")
+
 
 net = (root / "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv").read_text(encoding="utf-8")
 if "hft_round_chip_app_top #(" in net:
@@ -93,6 +97,10 @@ if ".cfg_position_effect(cfg_position_effect)" not in dual:
     errors.append("I5 dual-XGMII top does not propagate PositionEffect to trading core")
 if "input  wire [7:0]             cfg_position_effect" not in dual:
     errors.append("I5 dual-XGMII top lacks PositionEffect host input")
+
+latency_tcl = (root / "vivado/i5_dual_xgmii_latency_xsim.tcl").read_text(encoding="utf-8")
+if "hft_rmic_cl2ex_parallel_admission_v1.sv" not in latency_tcl:
+    errors.append("I5 latency phase-sweep XSim omits the active parallel-admission source")
 
 if errors:
     print("I5_DERIVED_CONTRACT_CHECK_FAIL")

@@ -245,6 +245,13 @@ module tb_hft_rmic_dual_xgmii_full_system #(
     realtime sc5_cdc_final_data_time;
     realtime sc5_shadow_decision_time;
     realtime sc5_prebuild_accept_time;
+    realtime sc5_risk_order_fire_time;
+    realtime sc5_acct_req_time;
+    realtime sc5_store_req_time;
+    realtime sc5_acct_rsp_time;
+    realtime sc5_store_rsp_time;
+    realtime sc5_risk_accept_time;
+    realtime sc5_encoder_accept_time;
     realtime sc5_app_first_time;
     realtime sc5_trading_start_time;
     real sc5_internal_ns;
@@ -1787,6 +1794,13 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             sc5_cdc_final_data_time = -1.0;
             sc5_shadow_decision_time = -1.0;
             sc5_prebuild_accept_time = -1.0;
+            sc5_risk_order_fire_time = -1.0;
+            sc5_acct_req_time = -1.0;
+            sc5_store_req_time = -1.0;
+            sc5_acct_rsp_time = -1.0;
+            sc5_store_rsp_time = -1.0;
+            sc5_risk_accept_time = -1.0;
+            sc5_encoder_accept_time = -1.0;
             sc5_app_first_time = -1.0;
             sc5_trading_start_time = -1.0;
             sc5_marker_arm = (SC5_LATENCY != 0);
@@ -1823,6 +1837,17 @@ module tb_hft_rmic_dual_xgmii_full_system #(
                          sc5_internal_ns, sc5_internal_cycles,
                          sc5_cdc_commit_ns,
                          sc5_trading_start_time - sc5_app_first_time);
+                $display("I5_RISK_LATENCY_SAMPLE phase_ps=%0d risk_order_fire_ns=%0.3f acct_req_ns=%0.3f store_req_ns=%0.3f acct_rsp_ns=%0.3f store_rsp_ns=%0.3f risk_accept_ns=%0.3f encoder_accept_ns=%0.3f app_first_ns=%0.3f xgmii_start_ns=%0.3f",
+                         SC5_MARKET_PHASE_PS,
+                         sc5_risk_order_fire_time,
+                         sc5_acct_req_time,
+                         sc5_store_req_time,
+                         sc5_acct_rsp_time,
+                         sc5_store_rsp_time,
+                         sc5_risk_accept_time,
+                         sc5_encoder_accept_time,
+                         sc5_app_first_time,
+                         sc5_trading_start_time);
             end
             m6_marker_arm = 1'b0;
             sc5_marker_arm = 1'b0;
@@ -2625,6 +2650,33 @@ module tb_hft_rmic_dual_xgmii_full_system #(
             if ((sc5_prebuild_accept_time < 0.0) &&
                 dut.u_trading_core.u_round_chip_app.prebuild_direct_accept)
                 sc5_prebuild_accept_time = $realtime;
+            if ((sc5_risk_order_fire_time < 0.0) &&
+                dut.u_trading_core.u_round_chip_app.risk_source_valid &&
+                dut.u_trading_core.u_round_chip_app.risk_source_ready)
+                sc5_risk_order_fire_time = $realtime;
+            if ((sc5_acct_req_time < 0.0) &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_acct_req_valid &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_acct_req_ready)
+                sc5_acct_req_time = $realtime;
+            if ((sc5_store_req_time < 0.0) &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_store_req_valid &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_store_req_ready)
+                sc5_store_req_time = $realtime;
+            if ((sc5_acct_rsp_time < 0.0) &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_acct_rsp_valid &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_acct_rsp_ready)
+                sc5_acct_rsp_time = $realtime;
+            if ((sc5_store_rsp_time < 0.0) &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_store_rsp_valid &&
+                dut.u_trading_core.u_round_chip_app.u_i5_risk.cl_store_rsp_ready)
+                sc5_store_rsp_time = $realtime;
+            if ((sc5_risk_accept_time < 0.0) &&
+                dut.u_trading_core.u_round_chip_app.risk_accepted_valid)
+                sc5_risk_accept_time = $realtime;
+            if ((sc5_encoder_accept_time < 0.0) &&
+                dut.u_trading_core.u_round_chip_app.risk_accepted_valid &&
+                dut.u_trading_core.u_round_chip_app.encoder_strategy_order_ready)
+                sc5_encoder_accept_time = $realtime;
             if ((sc5_app_first_time < 0.0) && round_tx_valid)
                 sc5_app_first_time = $realtime;
             if ((sc5_trading_start_time < 0.0) &&

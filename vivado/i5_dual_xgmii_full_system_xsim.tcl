@@ -42,6 +42,7 @@ set integration_sources [list \
     [file join $root "rtl" "accounting" "hft_rmic_futures_state_manager_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_futures_order_store_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_cl2ex_admission_v1.sv"] \
+    [file join $root "rtl" "integration" "hft_rmic_cl2ex_parallel_admission_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_order_gate_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_committed_execution_bridge_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_shared_core_v1.sv"] \

@@ -13,7 +13,8 @@ module hft_rmic_order_gate_v1 #(
     parameter integer ACCOUNT_MAP_INDEX_W = (ACCOUNT_MAP_ENTRIES <= 1) ? 1 : $clog2(ACCOUNT_MAP_ENTRIES),
     parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES),
     parameter integer QTY_W = 16,
-    parameter integer ENABLE_HOT_MAP_CACHE = 0
+    parameter integer ENABLE_HOT_MAP_CACHE = 0,
+    parameter integer ENABLE_PARALLEL_ADMISSION = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -211,51 +212,101 @@ module hft_rmic_order_gate_v1 #(
                         account_cache_ready && product_cache_ready;
     assign order_ready = admission_order_ready && config_quiet;
 
-    hft_rmic_cl2ex_admission_v1 #(
-        .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(QTY_W)
-    ) u_admission (
-        .clk(clk), .rst_n(rst_n),
-        .order_valid(order_valid && config_quiet),
-        .order_ready(admission_order_ready),
-        .order_data(order_data),
-        .policy_pass(policy_pass),
-        .policy_reason_source(policy_reason_source),
-        .policy_reason_code(policy_reason_code),
-        .order_id(normalized_order_id),
-        .account_id(normalized_account_id),
-        .product_id(normalized_product_id),
-        .side(normalized_side),
-        .position_effect(policy_position_effect),
-        .order_type(policy_order_type),
-        .tif(policy_tif),
-        .limit_price(normalized_price),
-        .qty(normalized_qty32[QTY_W-1:0]),
-        .result_valid(result_valid), .result_ready(result_ready),
-        .result_accepted(result_accepted),
-        .result_reason_source(result_reason_source),
-        .result_reason_code(result_reason_code),
-        .result_order_id(result_order_id),
-        .result_order_data(result_order_data),
-        .acct_req_valid(acct_req_valid), .acct_req_ready(acct_req_ready),
-        .acct_req_account_id(acct_req_account_id), .acct_req_product_id(acct_req_product_id),
-        .acct_req_event_kind(acct_req_event_kind), .acct_req_side(acct_req_side),
-        .acct_req_position_effect(acct_req_position_effect),
-        .acct_req_order_qty(acct_req_order_qty), .acct_req_fill_qty(acct_req_fill_qty),
-        .acct_req_release_qty(acct_req_release_qty),
-        .acct_rsp_valid(acct_rsp_valid), .acct_rsp_ready(acct_rsp_ready),
-        .acct_rsp_ok(acct_rsp_ok), .acct_rsp_reason_source(acct_rsp_reason_source),
-        .acct_rsp_reason_code(acct_rsp_reason_code),
-        .store_req_valid(store_req_valid), .store_req_ready(store_req_ready),
-        .store_req_op(store_req_op), .store_req_order_id(store_req_order_id),
-        .store_req_account_id(store_req_account_id), .store_req_product_id(store_req_product_id),
-        .store_req_side(store_req_side), .store_req_position_effect(store_req_position_effect),
-        .store_req_order_type(store_req_order_type), .store_req_tif(store_req_tif),
-        .store_req_limit_price(store_req_limit_price),
-        .store_req_remaining_qty(store_req_remaining_qty),
-        .store_rsp_valid(store_rsp_valid), .store_rsp_ready(store_rsp_ready),
-        .store_rsp_ok(store_rsp_ok), .store_rsp_found(store_rsp_found),
-        .store_rsp_status(store_rsp_status)
-    );
+    generate
+        if (ENABLE_PARALLEL_ADMISSION != 0) begin : g_parallel_admission
+        hft_rmic_cl2ex_parallel_admission_v1 #(
+            .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(QTY_W)
+        ) u_parallel_admission (
+            .clk(clk), .rst_n(rst_n),
+            .order_valid(order_valid && config_quiet),
+            .order_ready(admission_order_ready),
+            .order_data(order_data),
+            .policy_pass(policy_pass),
+            .policy_reason_source(policy_reason_source),
+            .policy_reason_code(policy_reason_code),
+            .order_id(normalized_order_id),
+            .account_id(normalized_account_id),
+            .product_id(normalized_product_id),
+            .side(normalized_side),
+            .position_effect(policy_position_effect),
+            .order_type(policy_order_type),
+            .tif(policy_tif),
+            .limit_price(normalized_price),
+            .qty(normalized_qty32[QTY_W-1:0]),
+            .result_valid(result_valid), .result_ready(result_ready),
+            .result_accepted(result_accepted),
+            .result_reason_source(result_reason_source),
+            .result_reason_code(result_reason_code),
+            .result_order_id(result_order_id),
+            .result_order_data(result_order_data),
+            .acct_req_valid(acct_req_valid), .acct_req_ready(acct_req_ready),
+            .acct_req_account_id(acct_req_account_id), .acct_req_product_id(acct_req_product_id),
+            .acct_req_event_kind(acct_req_event_kind), .acct_req_side(acct_req_side),
+            .acct_req_position_effect(acct_req_position_effect),
+            .acct_req_order_qty(acct_req_order_qty), .acct_req_fill_qty(acct_req_fill_qty),
+            .acct_req_release_qty(acct_req_release_qty),
+            .acct_rsp_valid(acct_rsp_valid), .acct_rsp_ready(acct_rsp_ready),
+            .acct_rsp_ok(acct_rsp_ok), .acct_rsp_reason_source(acct_rsp_reason_source),
+            .acct_rsp_reason_code(acct_rsp_reason_code),
+            .store_req_valid(store_req_valid), .store_req_ready(store_req_ready),
+            .store_req_op(store_req_op), .store_req_order_id(store_req_order_id),
+            .store_req_account_id(store_req_account_id), .store_req_product_id(store_req_product_id),
+            .store_req_side(store_req_side), .store_req_position_effect(store_req_position_effect),
+            .store_req_order_type(store_req_order_type), .store_req_tif(store_req_tif),
+            .store_req_limit_price(store_req_limit_price),
+            .store_req_remaining_qty(store_req_remaining_qty),
+            .store_rsp_valid(store_rsp_valid), .store_rsp_ready(store_rsp_ready),
+            .store_rsp_ok(store_rsp_ok), .store_rsp_found(store_rsp_found),
+            .store_rsp_status(store_rsp_status)
+        );
+        end else begin : g_serial_admission
+        hft_rmic_cl2ex_admission_v1 #(
+            .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(QTY_W)
+        ) u_admission (
+            .clk(clk), .rst_n(rst_n),
+            .order_valid(order_valid && config_quiet),
+            .order_ready(admission_order_ready),
+            .order_data(order_data),
+            .policy_pass(policy_pass),
+            .policy_reason_source(policy_reason_source),
+            .policy_reason_code(policy_reason_code),
+            .order_id(normalized_order_id),
+            .account_id(normalized_account_id),
+            .product_id(normalized_product_id),
+            .side(normalized_side),
+            .position_effect(policy_position_effect),
+            .order_type(policy_order_type),
+            .tif(policy_tif),
+            .limit_price(normalized_price),
+            .qty(normalized_qty32[QTY_W-1:0]),
+            .result_valid(result_valid), .result_ready(result_ready),
+            .result_accepted(result_accepted),
+            .result_reason_source(result_reason_source),
+            .result_reason_code(result_reason_code),
+            .result_order_id(result_order_id),
+            .result_order_data(result_order_data),
+            .acct_req_valid(acct_req_valid), .acct_req_ready(acct_req_ready),
+            .acct_req_account_id(acct_req_account_id), .acct_req_product_id(acct_req_product_id),
+            .acct_req_event_kind(acct_req_event_kind), .acct_req_side(acct_req_side),
+            .acct_req_position_effect(acct_req_position_effect),
+            .acct_req_order_qty(acct_req_order_qty), .acct_req_fill_qty(acct_req_fill_qty),
+            .acct_req_release_qty(acct_req_release_qty),
+            .acct_rsp_valid(acct_rsp_valid), .acct_rsp_ready(acct_rsp_ready),
+            .acct_rsp_ok(acct_rsp_ok), .acct_rsp_reason_source(acct_rsp_reason_source),
+            .acct_rsp_reason_code(acct_rsp_reason_code),
+            .store_req_valid(store_req_valid), .store_req_ready(store_req_ready),
+            .store_req_op(store_req_op), .store_req_order_id(store_req_order_id),
+            .store_req_account_id(store_req_account_id), .store_req_product_id(store_req_product_id),
+            .store_req_side(store_req_side), .store_req_position_effect(store_req_position_effect),
+            .store_req_order_type(store_req_order_type), .store_req_tif(store_req_tif),
+            .store_req_limit_price(store_req_limit_price),
+            .store_req_remaining_qty(store_req_remaining_qty),
+            .store_rsp_valid(store_rsp_valid), .store_rsp_ready(store_rsp_ready),
+            .store_rsp_ok(store_rsp_ok), .store_rsp_found(store_rsp_found),
+            .store_rsp_status(store_rsp_status)
+        );
+        end
+    endgenerate
 
     initial begin
         if (QTY_W != 16)
