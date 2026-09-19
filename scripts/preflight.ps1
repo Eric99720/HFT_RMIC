@@ -114,6 +114,10 @@ try {
             Write-Host '[HFT_RMIC] Running I5 L0 futures-state cache regression...'
             & $bash.Source scripts/run_i5_l0_state_cache_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'I5 L0 state-cache regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 fast AMU latency regression...'
+            & $bash.Source scripts/run_i5_fast_amu_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 fast AMU regression failed' }
         }
     }
 

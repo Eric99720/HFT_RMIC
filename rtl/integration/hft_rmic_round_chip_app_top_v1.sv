@@ -856,7 +856,8 @@ module hft_rmic_round_chip_app_top_v1 #(
         .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(16), .MARGIN_W(64),
         .ENABLE_HOT_MAP_CACHE(1),
         .ENABLE_PARALLEL_CL_ADMISSION(1),
-        .ENABLE_L0_STATE_CACHE(1)
+        .ENABLE_L0_STATE_CACHE(1),
+        .ENABLE_FAST_CONTEXT_AMU(1)
     ) u_i5_risk (
         .clk(clk), .rst_n(rst_n),
         .integration_ready(risk_integration_ready && !risk_exec_metadata_error_sticky && !execq_overflow_sticky),

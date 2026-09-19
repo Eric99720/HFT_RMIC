@@ -25,6 +25,7 @@ checks = {
         "ENABLE_HOT_MAP_CACHE(1)",
         "ENABLE_PARALLEL_CL_ADMISSION(1)",
         "ENABLE_L0_STATE_CACHE(1)",
+        "ENABLE_FAST_CONTEXT_AMU(1)",
         "financial_protocol_encoder_session_top",
     ],
     "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv": [
@@ -73,6 +74,9 @@ if "ENABLE_PARALLEL_CL_ADMISSION(1)" not in app:
     errors.append("I5 parallel-admission candidate is not enabled in the full-system app")
 if "ENABLE_L0_STATE_CACHE(1)" not in app:
     errors.append("I5 L0 futures-state cache is not enabled in the full-system app")
+if "ENABLE_FAST_CONTEXT_AMU(1)" not in app:
+    errors.append("I5 fast context AMU is not enabled in the full-system app")
+
 
 
 

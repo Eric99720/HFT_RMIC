@@ -23,7 +23,8 @@ module hft_rmic_shared_core_v1 #(
     parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES),
     parameter integer ENABLE_HOT_MAP_CACHE = 0,
     parameter integer ENABLE_PARALLEL_CL_ADMISSION = 0,
-    parameter integer ENABLE_L0_STATE_CACHE = 0
+    parameter integer ENABLE_L0_STATE_CACHE = 0,
+    parameter integer ENABLE_FAST_CONTEXT_AMU = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -413,7 +414,10 @@ module hft_rmic_shared_core_v1 #(
     assign ex_store_rsp_limit_price = store_rsp_limit_price_i;
     assign ex_store_rsp_remaining_qty = store_rsp_remaining_qty_i;
 
-    hft_rmic_futures_order_store_v1 #(.QTY_W(QTY_W)) u_store (
+    hft_rmic_futures_order_store_v1 #(
+        .QTY_W(QTY_W),
+        .ENABLE_FAST_AMU(ENABLE_FAST_CONTEXT_AMU)
+    ) u_store (
         .clk(clk), .rst_n(rst_n),
         .req_valid(store_req_valid_i), .req_ready(store_req_ready_i),
         .req_op(store_req_op_i), .req_order_id(store_req_order_id_i),

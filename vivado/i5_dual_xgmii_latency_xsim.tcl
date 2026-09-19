@@ -48,6 +48,7 @@ set integration_sources [list \
     [file join $root "rtl" "accounting" "hft_rmic_futures_transition_v1.sv"] \
     [file join $root "rtl" "accounting" "hft_rmic_state_ram.sv"] \
     [file join $root "rtl" "accounting" "hft_rmic_futures_state_manager_v1.sv"] \
+    [file join $root "rtl" "integration" "hft_rmic_amu_banked_double_hash_fast_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_futures_order_store_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_cl2ex_admission_v1.sv"] \
     [file join $root "rtl" "integration" "hft_rmic_cl2ex_parallel_admission_v1.sv"] \
