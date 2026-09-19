@@ -98,6 +98,10 @@ if ".cfg_position_effect(cfg_position_effect)" not in dual:
 if "input  wire [7:0]             cfg_position_effect" not in dual:
     errors.append("I5 dual-XGMII top lacks PositionEffect host input")
 
+latency_tcl = (root / "vivado/i5_dual_xgmii_latency_xsim.tcl").read_text(encoding="utf-8")
+if "hft_rmic_cl2ex_parallel_admission_v1.sv" not in latency_tcl:
+    errors.append("I5 latency phase-sweep XSim omits the active parallel-admission source")
+
 if errors:
     print("I5_DERIVED_CONTRACT_CHECK_FAIL")
     for e in errors:
