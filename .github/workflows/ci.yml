@@ -107,3 +107,6 @@ jobs:
 
       - name: Run I5 fast AMU latency regression
         run: bash scripts/run_i5_fast_amu_iverilog.sh
+
+      - name: Run I5 fast atomic success-join regression
+        run: bash scripts/run_i5_fast_success_join_iverilog.sh

@@ -80,7 +80,8 @@ if i5_ooc.exists():
         if macro in text:
             errors.append(f"i5_dual_xgmii_full_system_ooc.tcl: physical OOC must not define {macro}")
     for token in (
-        "place_design -directive AltSpreadLogic_high",
+        "place_design -directive ExtraNetDelay_high",
+        "HFT_RMIC_I5_PLACER_MODE=ExtraNetDelay_high",
         "phys_opt_design -directive AggressiveExplore",
         "route_design -directive AlternateCLBRouting",
         "route_design -directive NoTimingRelaxation",

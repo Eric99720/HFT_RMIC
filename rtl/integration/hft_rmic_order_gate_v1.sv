@@ -14,7 +14,8 @@ module hft_rmic_order_gate_v1 #(
     parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES),
     parameter integer QTY_W = 16,
     parameter integer ENABLE_HOT_MAP_CACHE = 0,
-    parameter integer ENABLE_PARALLEL_ADMISSION = 0
+    parameter integer ENABLE_PARALLEL_ADMISSION = 0,
+    parameter integer ENABLE_FAST_SUCCESS_JOIN = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -215,7 +216,8 @@ module hft_rmic_order_gate_v1 #(
     generate
         if (ENABLE_PARALLEL_ADMISSION != 0) begin : g_parallel_admission
         hft_rmic_cl2ex_parallel_admission_v1 #(
-            .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(QTY_W)
+            .ORDER_WIDTH(ORDER_WIDTH), .QTY_W(QTY_W),
+            .ENABLE_FAST_SUCCESS_BYPASS(ENABLE_FAST_SUCCESS_JOIN)
         ) u_parallel_admission (
             .clk(clk), .rst_n(rst_n),
             .order_valid(order_valid && config_quiet),
