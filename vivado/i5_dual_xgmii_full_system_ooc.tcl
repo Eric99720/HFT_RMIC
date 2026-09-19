@@ -89,13 +89,16 @@ if {[expr {$bram36_count + $bram18_count}] == 0} { error "I5 full-system block-R
 
 opt_design
 
-# The first real I5 routed run met placement timing (+0.200 ns) but failed
-# routing at -0.261 ns with Vivado reporting level-5 global/short congestion.
-# Use AMD's congestion-oriented UltraScale flow: spread logic during placement,
-# run aggressive post-place physical optimization, then use the alternate CLB
-# router so the implementation does not collapse into the same congested
-# trading-clock region.
-place_design -directive AltSpreadLogic_high
+# The fast-success-join candidate still meets placement timing (+0.205 ns),
+# but its 2026-09-19 routed run failed at -0.150 ns.  The routed worst path is
+# entirely inside the pinned-HFT legacy network RX datapath and is dominated by
+# interconnect: 6.531 ns data delay = 1.482 ns logic + 5.049 ns route (77.3%).
+# This is the exact use case for Vivado's Performance_NetDelay_high placer
+# strategy: make high-fanout/long-distance nets deliberately more pessimistic
+# during placement so a place-clean path does not become route-negative.
+# No RTL or architectural latency changes are made here.
+puts "HFT_RMIC_I5_PLACER_MODE=ExtraNetDelay_high"
+place_design -directive ExtraNetDelay_high
 report_utilization -hierarchical -file [file join $out_dir "utilization_placed.rpt"]
 report_timing_summary -delay_type max -max_paths 50 -file [file join $out_dir "timing_summary_placed.rpt"]
 write_checkpoint -force [file join $out_dir "i5_dual_xgmii_placed.dcp"]
