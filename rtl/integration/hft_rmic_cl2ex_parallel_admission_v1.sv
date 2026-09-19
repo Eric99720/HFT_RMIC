@@ -19,12 +19,19 @@
 // Any rollback failure is escalated with ADMISSION_ROLLBACK_FAILED so the
 // shared core enters recovery-required.  The original 256-bit HFT payload is
 // never accepted before the pair has committed atomically.
+//
+// ENABLE_FAST_SUCCESS_BYPASS removes the otherwise mandatory S_RESP bubble on
+// the all-success path. If the final registered accounting/store response
+// arrives while the result consumer is ready, result_valid/result_accepted are
+// asserted in that same cycle. Backpressure automatically falls back to S_RESP
+// with a registered, stable result. Reject/rollback paths are unchanged.
 module hft_rmic_cl2ex_parallel_admission_v1 #(
     parameter integer ORDER_WIDTH = 256,
     parameter integer ACCOUNT_ID_W = 8,
     parameter integer PRODUCT_ID_W = 8,
     parameter integer PRICE_W = 32,
-    parameter integer QTY_W = 16
+    parameter integer QTY_W = 16,
+    parameter integer ENABLE_FAST_SUCCESS_BYPASS = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -47,11 +54,11 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
 
     output wire                         result_valid,
     input  wire                         result_ready,
-    output reg                          result_accepted,
-    output reg [1:0]                    result_reason_source,
-    output reg [7:0]                    result_reason_code,
-    output reg [31:0]                   result_order_id,
-    output reg [ORDER_WIDTH-1:0]        result_order_data,
+    output wire                         result_accepted,
+    output wire [1:0]                   result_reason_source,
+    output wire [7:0]                   result_reason_code,
+    output wire [31:0]                  result_order_id,
+    output wire [ORDER_WIDTH-1:0]        result_order_data,
 
     output reg                          acct_req_valid,
     input  wire                         acct_req_ready,
@@ -124,11 +131,16 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
     reg store_ok_q;
     reg [2:0] store_status_q;
 
+    reg result_accepted_q;
+    reg [1:0] result_reason_source_q;
+    reg [7:0] result_reason_code_q;
+    reg [31:0] result_order_id_q;
+    reg [ORDER_WIDTH-1:0] result_order_data_q;
+
     reg [1:0] rollback_reject_source;
     reg [7:0] rollback_reject_code;
 
     assign order_ready = (state == S_IDLE);
-    assign result_valid = (state == S_RESP);
 
     wire order_fire = order_valid && order_ready;
     wire acct_req_fire = acct_req_valid && acct_req_ready;
@@ -148,6 +160,24 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
         store_rsp_fire ? store_rsp_status : store_status_q;
     wire store_insert_success_now =
         store_ok_now && (store_status_now == STORE_ST_OK);
+
+    // Zero-extra-cycle success handoff. Both downstream responses are already
+    // registered protocol results, so the bypass only joins their valid/OK
+    // bits with the transaction payload captured at order acceptance.
+    wire fast_success_now =
+        (ENABLE_FAST_SUCCESS_BYPASS != 0) &&
+        (state == S_PARALLEL) &&
+        acct_done_now && store_done_now &&
+        acct_ok_now && store_insert_success_now;
+
+    assign result_valid = (state == S_RESP) || fast_success_now;
+    assign result_accepted = fast_success_now ? 1'b1 : result_accepted_q;
+    assign result_reason_source = fast_success_now ?
+        `HFT_RMIC_REASON_SRC_SYSTEM : result_reason_source_q;
+    assign result_reason_code = fast_success_now ?
+        `HFT_RMIC_SYSTEM_REASON_PASS : result_reason_code_q;
+    assign result_order_id = result_order_id_q;
+    assign result_order_data = result_order_data_q;
 
     function automatic [7:0] store_failure_reason;
         input [2:0] status;
@@ -241,11 +271,11 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
             rollback_reject_source <= `HFT_RMIC_REASON_SRC_SYSTEM;
             rollback_reject_code <= `HFT_RMIC_SYSTEM_REASON_ORDER_STORE_FAILURE;
 
-            result_accepted <= 1'b0;
-            result_reason_source <= `HFT_RMIC_REASON_SRC_SYSTEM;
-            result_reason_code <= `HFT_RMIC_SYSTEM_REASON_NOT_READY;
-            result_order_id <= 32'd0;
-            result_order_data <= {ORDER_WIDTH{1'b0}};
+            result_accepted_q <= 1'b0;
+            result_reason_source_q <= `HFT_RMIC_REASON_SRC_SYSTEM;
+            result_reason_code_q <= `HFT_RMIC_SYSTEM_REASON_NOT_READY;
+            result_order_id_q <= 32'd0;
+            result_order_data_q <= {ORDER_WIDTH{1'b0}};
         end else begin
             case (state)
                 S_IDLE: begin
@@ -261,11 +291,11 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
                         tx_limit_price <= limit_price;
                         tx_qty <= qty;
 
-                        result_order_data <= order_data;
-                        result_order_id <= order_id;
-                        result_accepted <= 1'b0;
-                        result_reason_source <= policy_reason_source;
-                        result_reason_code <= policy_reason_code;
+                        result_order_data_q <= order_data;
+                        result_order_id_q <= order_id;
+                        result_accepted_q <= 1'b0;
+                        result_reason_source_q <= policy_reason_source;
+                        result_reason_code_q <= policy_reason_code;
 
                         acct_req_sent <= 1'b0;
                         store_req_sent <= 1'b0;
@@ -304,10 +334,13 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
 
                     if (acct_done_now && store_done_now) begin
                         if (acct_ok_now && store_insert_success_now) begin
-                            result_accepted <= 1'b1;
-                            result_reason_source <= `HFT_RMIC_REASON_SRC_SYSTEM;
-                            result_reason_code <= `HFT_RMIC_SYSTEM_REASON_PASS;
-                            state <= S_RESP;
+                            result_accepted_q <= 1'b1;
+                            result_reason_source_q <= `HFT_RMIC_REASON_SRC_SYSTEM;
+                            result_reason_code_q <= `HFT_RMIC_SYSTEM_REASON_PASS;
+                            if ((ENABLE_FAST_SUCCESS_BYPASS != 0) && result_ready)
+                                state <= S_IDLE;
+                            else
+                                state <= S_RESP;
                         end else if (acct_ok_now && !store_insert_success_now) begin
                             rollback_reject_source <= `HFT_RMIC_REASON_SRC_SYSTEM;
                             rollback_reject_code <= store_failure_reason(store_status_now);
@@ -320,9 +353,9 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
                             // Preserve the sequential controller's precedence:
                             // if accounting rejects, its reason is authoritative
                             // and no successful mutation remains to roll back.
-                            result_accepted <= 1'b0;
-                            result_reason_source <= acct_reason_source_now;
-                            result_reason_code <= acct_reason_code_now;
+                            result_accepted_q <= 1'b0;
+                            result_reason_source_q <= acct_reason_source_now;
+                            result_reason_code_q <= acct_reason_code_now;
                             state <= S_RESP;
                         end
                     end
@@ -335,13 +368,13 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
 
                 S_ACCT_ROLLBACK_WAIT: begin
                     if (acct_rsp_fire) begin
-                        result_accepted <= 1'b0;
+                        result_accepted_q <= 1'b0;
                         if (acct_rsp_ok) begin
-                            result_reason_source <= rollback_reject_source;
-                            result_reason_code <= rollback_reject_code;
+                            result_reason_source_q <= rollback_reject_source;
+                            result_reason_code_q <= rollback_reject_code;
                         end else begin
-                            result_reason_source <= `HFT_RMIC_REASON_SRC_SYSTEM;
-                            result_reason_code <= `HFT_RMIC_SYSTEM_REASON_ADMISSION_ROLLBACK_FAILED;
+                            result_reason_source_q <= `HFT_RMIC_REASON_SRC_SYSTEM;
+                            result_reason_code_q <= `HFT_RMIC_SYSTEM_REASON_ADMISSION_ROLLBACK_FAILED;
                         end
                         state <= S_RESP;
                     end
@@ -354,13 +387,13 @@ module hft_rmic_cl2ex_parallel_admission_v1 #(
 
                 S_STORE_ROLLBACK_WAIT: begin
                     if (store_rsp_fire) begin
-                        result_accepted <= 1'b0;
+                        result_accepted_q <= 1'b0;
                         if (store_rsp_ok) begin
-                            result_reason_source <= rollback_reject_source;
-                            result_reason_code <= rollback_reject_code;
+                            result_reason_source_q <= rollback_reject_source;
+                            result_reason_code_q <= rollback_reject_code;
                         end else begin
-                            result_reason_source <= `HFT_RMIC_REASON_SRC_SYSTEM;
-                            result_reason_code <= `HFT_RMIC_SYSTEM_REASON_ADMISSION_ROLLBACK_FAILED;
+                            result_reason_source_q <= `HFT_RMIC_REASON_SRC_SYSTEM;
+                            result_reason_code_q <= `HFT_RMIC_SYSTEM_REASON_ADMISSION_ROLLBACK_FAILED;
                         end
                         state <= S_RESP;
                     end
