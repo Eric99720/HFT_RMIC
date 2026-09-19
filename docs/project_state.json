@@ -1,18 +1,20 @@
 {
   "schema_version": 1,
-  "record_revision": "2026-09-18-i5-bidirectional-xsim-ready-v1",
-  "observed_at_utc": "2026-09-18T06:40:00Z",
+  "record_revision": "2026-09-20-phase-delivery-monitoring-v1",
+  "observed_at_utc": "2026-09-19T19:20:59Z",
   "goal": "Integrate the frozen dual-XGMII HFT baseline with the frozen RMIC M5.4 transactional core without modifying either upstream, while closing TAIFEX futures accounting, execution idempotency, safety-policy, timing, and end-to-end validation gaps.",
-  "handoff": "I5 source-level and unit-level integration is closed for the derived hierarchy and committed-execution delivery path. Both active R01 producers are behind the I4 risk boundary; committed R02/R32 metadata is keyed, cache-overrun fail-closed, and queued before the serialized shared risk core. Full-system Scenario 10 now requires BUY OPEN market→R01, live committed R02 full fill into RMIC, and a subsequent SELL CLOSE that can pass only if the same futures state was updated. Exact-head CI is green; local pinned-source dual-XGMII XSim is the next evidence gate.",
-  "next_action": "Run the prepared I5 dual-XGMII functional XSim and upload its packaged ZIP. The run must include I5_FULL_SYSTEM_FILL_TO_CLOSE_PASS plus the overall full-system PASS marker; review/fix that result before starting the real-XPM U50 I5 OOC implementation.",
+  "handoff": "Instruction/governance-only reconciliation of local history and durable results. Historical I5 full-system XSim and routed OOC PASS are recorded for 52aa8b9 and d788edb; the five-phase SC5 sweep at 768296e records 43 cycles. Later parallel admission, L0 state cache, fast context AMU, fast success join and prospective CL issue changes are present in the observed checkout. Exact-head functional, physical and latency acceptance is unverified; live GitHub inspection confirms draft PR #10 on the existing stacked base and successful governance/integration CI at source 6991f79. Post-push delivery checks are owned by the live PR; full-system and physical acceptance remain separate. I5 remains VERIFYING.",
+  "next_action": "Continue I5 on the existing candidate branch recorded in phase.branch. Verify candidate HEAD/configuration and pins, then obtain or review matching focused regressions, full-system XSim, five-phase SC5 latency and real-XPM U50 post-route OOC evidence against the recorded baseline. Continue delivery through PR #10 and recheck its base/head/CI before publication; preserve existing PR dependencies and do not inherit historical full-system acceptance. Preserve failed attempts and manifests; close I5 only after its acceptance and delivery gates pass on the reviewed head.",
   "active_plan": "docs/exec_plans/2026-09-18-i5-full-dual-xgmii-integration.md",
-  "decision": "D-20260918-18",
+  "decision": "D-20260920-21",
   "phase": {
     "id": "I5",
     "name": "Full Dual-XGMII HFT + RMIC Integration",
     "status": "VERIFYING",
-    "branch": "codex/i5-full-dual-xgmii-integration",
-    "pr": 4
+    "branch": "codex/i5-prospective-cl-issue",
+    "pr": 10,
+    "source_head": "6991f79f813f1b212d35014636793ba2ddb37d40",
+    "pr_base": "codex/i5-fast-join"
   },
   "source_pins": {
     "hft": "50217fad1fd580f8c451ba893f9035f4be1dc21a",
@@ -175,13 +177,54 @@
       "date": "2026-09-18",
       "evidence": "rtl/integration/hft_rmic_dual_xgmii_full_system_top_v1.sv",
       "id": "I5-FULL-COMPOSITION-PREPARED",
-      "summary": "Integration-owned risk-aware round-chip, trading-port XGMII and dual-XGMII derivatives plus frozen-regression XSim and real-XPM OOC runners are prepared; local private-upstream Vivado evidence remains pending."
+      "summary": "2026-09-18 preparation snapshot: integration-owned full composition and local runners were ready; evidence was pending at that time. Subsequent commit-specific functional/physical results are recorded in I5-HISTORICAL-AB; this milestone is not current-HEAD acceptance."
     },
     {
       "date": "2026-09-18",
       "evidence": "tb/tb_hft_rmic_dual_xgmii_full_system.sv",
       "id": "I5-BIDIRECTIONAL-RISK-LOOP-READY",
-      "summary": "I5 full-system Scenario 10 is prepared to prove BUY OPEN market-to-R01, committed live R02 full fill into the shared futures state, and a subsequent SELL CLOSE that depends on that fill; XSim evidence remains pending."
+      "summary": "2026-09-18 preparation snapshot: Scenario 10 BUY OPEN to committed live R02 fill to dependent SELL CLOSE was ready for XSim. Subsequent historical full-system PASS is recorded in I5-HISTORICAL-AB; current candidate verification is separate."
+    },
+    {
+      "date": "2026-09-19",
+      "id": "I5-HISTORICAL-AB",
+      "evidence": "docs/results/i5_latency_recovery_candidate.md",
+      "summary": "Durable A/B summary records full-system XSim and real-XPM routed OOC PASS at 52aa8b98c35b3de32b23d3cfe16c13e65e659a2f and d788edb42b53d8c52771832e3eb7125101f7bfeb, with routed WNS +0.016/+0.022 ns and TNS 0. Historical source-specific evidence, not acceptance of later candidates."
+    },
+    {
+      "date": "2026-09-19",
+      "id": "I5-HISTORICAL-SC5",
+      "evidence": "docs/results/i5_latency_recovery_candidate.md",
+      "summary": "Package HFT_RMIC_i5_latency_phase_sweep_20260919-040931.zip records five phases PASS at 768296ed28b12c0d14e1fc4f8d115a94bad0e8ca: 270.080-275.200 ns, 43 conservative cycles, +12 cycles versus the pinned-HFT reference. Supersedes the earlier sweep-pending statement only for that measured source."
+    },
+    {
+      "date": "2026-09-20",
+      "id": "I5-GOVERNANCE-HANDOFF",
+      "evidence": "docs/exec_plans/2026-09-18-i5-full-dual-xgmii-integration.md",
+      "summary": "Instruction-only update reconciles obsolete I4/I5 handoff with commit-specific historical results and later candidate lineage. D-20260920-20 resumes the existing candidate branch and supersedes the old branch-creation instruction; remote PR/CI and exact-head functional/physical acceptance remain unverified. I5 remains VERIFYING."
+    },
+    {
+      "date": "2026-09-20",
+      "id": "RTL-LANGUAGE-POLICY-GOVERNANCE",
+      "status": "COMPLETE",
+      "evidence": "DECISIONS.md",
+      "summary": "AGENTS.md and D-20260920-19 adopt Verilog IEEE 1364-2005 for integration synthesizable RTL (.v/.vh), scoped migration and arithmetic/clock/reset/handshake rules. Simulation-only testbenches may use SystemVerilog; frozen/vendor IP stays untouched. Existing 26 .sv and 4 .svh files remain a legacy backlog. Completion covers instruction maintenance only; no RTL conversion or I5 functional/physical sign-off."
+    },
+    {
+      "date": "2026-09-20",
+      "id": "PHASE-DELIVERY-MONITORING-POLICY",
+      "evidence": "docs/project_management_workflow.md",
+      "summary": "User authorizes GitHub synchronization at every completed phase and low-frequency long-job monitoring. Live PR #10/base verified; preserve existing stack. Default checks every 10 minutes, or 30-60 minutes for stable multi-hour jobs, preferably deterministic and quiet until actionable changes. No OOC or live monitor launched."
     }
-  ]
+  ],
+  "verification": {
+    "scope": "Instruction/governance and GitHub synchronization; live PR/base and prior-source CI inspected. No local simulations, Vivado builds or new long-job monitors.",
+    "exact_head_functional": "unverified",
+    "exact_head_physical": "unverified",
+    "exact_head_latency": "unverified",
+    "ci_status": "Governance and integration-regression SUCCESS observed at source 6991f79; use the live PR checks for subsequent delivered heads.",
+    "ci_url": "https://github.com/Eric99720/HFT_RMIC/pull/10/checks",
+    "governance_reconciliation": "D-20260920-20 selects the current working branch. D-20260920-21 records live PR #10 and its existing stacked base; preserve the stack during synchronization. Source_head is the inspected RTL source anchor, not the self-referential documentation delivery SHA.",
+    "policy_governance": "D-20260920-19 adopts Verilog-only integration RTL and scoped instruction maintenance. Source pins and protected instruction sections were checked during preparation; instruction-update validation is separate from I5 functional or physical acceptance. No RTL conversion or repository-wide language-compliance claim."
+  }
 }

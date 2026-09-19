@@ -280,6 +280,50 @@ The integration-owned XGMII/full-system derivatives expose `cfg_position_effect`
 
 ---
 
+## D-20260920-19 — Verilog-only integration RTL and scoped instruction maintenance
+
+**Status:** Adopted by explicit user instruction on 2026-09-20 (Asia/Taipei).
+
+**Decision:** Integration-owned synthesizable RTL uses Verilog (IEEE 1364-2005), `.v` modules and `.vh` headers. This covers adapters, wrappers and OOC tops. Simulation-only SystemVerilog testbenches are outside the RTL language restriction. Frozen upstream sources and vendor-generated IP retain their pinned/original language; integration-owned wrappers follow the rule. `AGENTS.md` owns the detailed implementation requirements.
+
+**Migration boundary:** The current repository still contains integration-owned `.sv`/`.svh` sources. They remain an explicit legacy backlog. Changing their synthesizable logic requires a scoped migration of the affected module and required integration headers, updated source lists/includes/runners, a Verilog-mode check and the existing behavior/timing acceptance. This policy change does not rename sources, convert RTL, change upstream pins or recertify prior results. Broad conversion requires its own implementation scope and evidence.
+
+**Why:** The user requires Verilog RTL. Explicit arithmetic, clock/reset crossings, assignment ownership and transfer/backpressure contracts address concrete FPGA failure modes while preserving the existing safety/evidence boundaries. Instruction maintenance also narrows routine record-update triggers and removes stale operational commands without weakening acceptance criteria.
+
+**Alternatives:** Immediate repository-wide conversion was not selected for this instruction-only task because it would change source identities, build references and verification scope. Allowing new SystemVerilog RTL was rejected by the user's language requirement.
+
+**Verification / limits:** Validate instruction consistency, source pins, project records, references, layout and diffs for this change. Existing `.sv` filenames and mixed-language regression success do not prove Verilog compliance. Functional simulation, post-route and hardware evidence remain tied to their recorded source versions; no new hardware or compliance claim is made.
+
+---
+
+## D-20260920-20 — Resume the observed I5 branch and retire historical branch-creation instructions
+
+**Status:** Adopted as record reconciliation; no Git operation performed.
+
+**Decision:** `docs/project_state.json` identifies the existing I5 candidate branch as the sole active working branch for continued phase work. Earlier timing-safe, latency-recovery and stacked-candidate branches/commits are historical comparison and recovery references. The former result-note instruction to create another stacked branch is superseded. Resume the existing branch under the one-phase/one-branch/one-PR policy; do not create another branch solely because a new conversation or optimization subtask begins.
+
+**Why:** Local history already contains the later candidate. Treating an old branch-creation suggestion as a current instruction would reproduce the drift instead of repairing it. This decision reconciles operational records while preserving all existing refs, unique evidence and source pins.
+
+**Delivery boundary:** Current PR ownership and CI are unverified. Before Git publication, inspect the remote phase PR, base and reviewed head, and reconcile delivery against the existing phase PR rather than assuming historical PR #4 owns the current candidate. That delivery check does not block already-authorized local investigation, implementation or verification. No merge, push, branch deletion, history rewrite or new branch is authorized by this documentation update.
+
+**Evidence / limits:** The local checkout at `6991f79f813f1b212d35014636793ba2ddb37d40` and the I5 result/ExecPlan lineage establish the observed working state. Historical PASS remains commit-specific; phase acceptance remains unchanged and I5 remains VERIFYING. This decision supersedes only the obsolete branch-creation direction in `docs/results/i5_latency_recovery_candidate.md`, not its measurements or recovery value.
+
+---
+
+## D-20260920-21 — Phase delivery and low-frequency long-job monitoring
+
+**Status:** Adopted by explicit user instruction on 2026-09-20 (Asia/Taipei).
+
+**Decision:** Synchronize publishable project work and reviewed evidence to GitHub at every completed research/integration phase, using the existing phase branch/PR and verifying the delivered remote commit and CI. This grants routine scoped Git delivery authority; merge still requires phase acceptance and passing required checks. Raw/private artifacts retain the results-policy boundary and are represented by compact provenance where appropriate.
+
+**Monitoring:** Use deterministic completion/status checks where possible, normally every 10 minutes or every 30-60 minutes for stable multi-hour jobs. Model/scheduler follow-up is reserved for meaningful changes or completion/failure; stop monitoring when the run ends. Detailed procedure is owned by `docs/project_management_workflow.md`.
+
+**Current delivery context:** Live GitHub inspection found PR #10 for the active prospective-CL branch, based on `codex/i5-fast-join`, with earlier I5 PRs #4-#9 still open. Preserve this existing stack during synchronization; no phase merge or PR restructuring is part of this update. The prior source `6991f79` has successful governance/integration CI; that does not establish full-system XSim, post-route or latency acceptance for I5.
+
+**Why / limits:** Durable phase delivery prevents stale repository handoffs. Low-frequency deterministic monitoring avoids spending model tokens on healthy unchanged processes. This policy update launches no OOC job or live monitoring schedule.
+
+---
+
 ## Decision format for future entries
 
 Each new decision should record:

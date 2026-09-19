@@ -2,6 +2,8 @@
 
 Date: 2026-09-19
 
+Record reconciliation: 2026-09-20 (instruction/governance-only). All PASS and timing values below apply to the listed measured commits. Current branch, HEAD, PR and verification status are owned by [`../project_state.json`](../project_state.json); later candidate source changes are logged in the [I5 plan](../exec_plans/2026-09-18-i5-full-dual-xgmii-integration.md). No current-HEAD acceptance is inferred from this historical note.
+
 ## Scope
 
 This note compares the verified timing-safe I5 baseline against the latency-recovery candidate. Both use the same pinned upstreams:
@@ -40,7 +42,7 @@ The latency-recovery XSim is clean and preserves the full I5 contract:
 
 The direct R01 stream still reports `app_to_start_cycles=1` in Scenario 3 and both Scenario 10 orders.
 
-Absolute testbench cycle numbers are not used as the latency-recovery proof because configuration/cache warm-up changes scenario setup time. The dedicated five-phase SC5 measurement is the required next gate.
+Absolute testbench cycle numbers are not used as the latency-recovery proof because configuration/cache warm-up changes scenario setup time. At the initial A/B write-up, the dedicated five-phase SC5 measurement was the next gate. The completed measurement below supersedes that pending statement for source `768296e`.
 
 ## Physical A/B
 
@@ -74,18 +76,16 @@ The previously critical speculative-strategy -> RMIC exact-map/admission path is
 
 The hot-map cache keeps the generic exact maps as the configuration source of truth, caches only the bridge-owned hot account/product keys, invalidates on configuration writes, and still requires the packed order keys to match the cached keys before reporting a map hit.
 
-## Current conclusion
+## Historical A/B conclusion (2026-09-19; superseded in part)
 
-The latency-recovery candidate has passed functional and physical closure and is therefore a valid candidate to replace the timing-safe baseline.
+The recorded `d788edb` candidate passed the functional and physical checks listed above. Those results supported further latency evaluation; they did not accept subsequent candidates or close the full I5 phase.
 
-It is **not yet proven** that the intended 6.4 ns market-to-R01 latency recovery is realized across asynchronous market/trading clock phase. The next acceptance gate is a five-phase SC5 sweep at 0/1280/2560/3840/5120 ps using `scripts/run_i5_latency_phase_sweep.ps1`.
-
-Promotion should occur only after that sweep is reviewed against the timing-safe baseline and the pinned-HFT latency reference.
+**2026-09-20 supersession:** the initial write-up left the intended 6.4 ns recovery across asynchronous phase unproven and requested a five-phase SC5 sweep. That sweep was subsequently recorded for `768296e` in `ff28d11`, as detailed below. The measured 43-cycle boundary is now historical evidence, not a pending sweep. It does not establish the latency or physical acceptance of the later candidate lineage; retain the complete I5 gates in the owning plan.
 
 
 ## Five-phase latency recertification
 
-Exact-head measurement package:
+Measurement package for the historical measured head:
 `HFT_RMIC_i5_latency_phase_sweep_20260919-040931.zip`
 
 Manifest:
@@ -127,7 +127,7 @@ The SC5 log also shows the speculative shadow-decision marker exactly one cycle 
 
 Note: the sweep runner's fields named `MarketToPrebuildNs`, `PrebuildToAppNs` and `PrebuildToStartNs` were derived from the `shadow_decision_ns` marker, not `prebuild_accept_ns`. The raw sample data is authoritative; future runner output should use explicit `shadow_*` names.
 
-## Next latency target
+## Historical next latency target and later provenance
 
 The one-cycle I5 risk-ingress slice has been successfully removed without losing 156.25-MHz post-route closure, but the remaining atomic admission sequence is still serialized:
 
@@ -135,4 +135,6 @@ The one-cycle I5 risk-ingress slice has been successfully removed without losing
 
 The next optimization target is therefore the transaction protocol itself, not another routing tweak. A safe candidate is to issue futures RESERVE and order-context INSERT in parallel while the shared CL owner lock prevents EX from observing either speculative mutation. Acceptance remains gated on both responses; if exactly one side succeeds, the successful side is rolled back before returning a reject. This can reduce the success path from the sum of state-manager and AMU latencies toward their maximum while preserving fail-closed atomicity.
 
-That optimization must be developed on a new stacked branch so this 43-cycle, timing-clean candidate remains an intact fallback.
+The original 2026-09-19 note proposed a new stacked branch to preserve this 43-cycle reference. **2026-09-20 governance supersession:** retain that suggestion as historical provenance only. Local history now contains parallel admission and subsequent cache/AMU/join/prospective-issue changes; see the owning plan. D-20260920-20 resolves the working-branch direction: resume the existing I5 candidate branch identified by canonical project state, retain earlier candidates as references, and verify remote phase PR/base/CI before publication. This historical note authorizes neither a new branch nor a migration. Preserve the measured commits and failed evidence as references.
+
+The earlier I4 failed new-INSERT assumption and narrowed I3 claim remain documented in the [I3 erratum](i3_atomic_cl2ex_ooc_postroute.md) and [corrected I4 parity result](i4_r01_byte_parity_xsim.md). Later I5 repair commits and verification gaps are recorded in the owning plan; no failed package is erased or reclassified as PASS by this reconciliation.
