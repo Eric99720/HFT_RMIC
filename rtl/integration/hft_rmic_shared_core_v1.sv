@@ -25,7 +25,8 @@ module hft_rmic_shared_core_v1 #(
     parameter integer ENABLE_PARALLEL_CL_ADMISSION = 0,
     parameter integer ENABLE_L0_STATE_CACHE = 0,
     parameter integer ENABLE_FAST_CONTEXT_AMU = 0,
-    parameter integer ENABLE_FAST_SUCCESS_JOIN = 0
+    parameter integer ENABLE_FAST_SUCCESS_JOIN = 0,
+    parameter integer ENABLE_PROSPECTIVE_CL_ISSUE = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -198,6 +199,9 @@ module hft_rmic_shared_core_v1 #(
 
     assign order_ready = choose_cl && cl_order_ready;
     wire cl_order_valid_i = choose_cl && order_valid;
+    wire cl_fire = cl_order_valid_i && cl_order_ready;
+    wire prospective_cl =
+        (ENABLE_PROSPECTIVE_CL_ISSUE != 0) && owner_none && cl_fire;
 
     assign exec_commit_ready = runtime_idle && ex_commit_ready_i;
     wire ex_commit_valid_i = runtime_idle && exec_commit_valid;
@@ -230,7 +234,8 @@ module hft_rmic_shared_core_v1 #(
         .PRODUCT_MAP_ENTRIES(PRODUCT_MAP_ENTRIES),
         .ENABLE_HOT_MAP_CACHE(ENABLE_HOT_MAP_CACHE),
         .ENABLE_PARALLEL_ADMISSION(ENABLE_PARALLEL_CL_ADMISSION),
-        .ENABLE_FAST_SUCCESS_JOIN(ENABLE_FAST_SUCCESS_JOIN)
+        .ENABLE_FAST_SUCCESS_JOIN(ENABLE_FAST_SUCCESS_JOIN),
+        .ENABLE_PROSPECTIVE_CL_ISSUE(ENABLE_PROSPECTIVE_CL_ISSUE)
     ) u_order_gate (
         .clk(clk), .rst_n(rst_n),
         .integration_ready(effective_integration_ready),
@@ -311,23 +316,24 @@ module hft_rmic_shared_core_v1 #(
     // Shared state manager
     // ------------------------------------------------------------------
     wire state_cfg_ready;
-    wire state_req_valid = (owner == OWNER_CL) ? cl_acct_req_valid :
+    wire route_cl_state = (owner == OWNER_CL) || prospective_cl;
+    wire state_req_valid = route_cl_state ? cl_acct_req_valid :
                            (owner == OWNER_EX) ? ex_acct_req_valid : 1'b0;
-    wire [7:0] state_req_account_id = (owner == OWNER_CL) ? cl_acct_req_account_id : ex_acct_req_account_id;
-    wire [7:0] state_req_product_id = (owner == OWNER_CL) ? cl_acct_req_product_id : ex_acct_req_product_id;
-    wire [2:0] state_req_event_kind = (owner == OWNER_CL) ? cl_acct_req_event_kind : ex_acct_req_event_kind;
-    wire state_req_side = (owner == OWNER_CL) ? cl_acct_req_side : ex_acct_req_side;
-    wire [7:0] state_req_position_effect = (owner == OWNER_CL) ? cl_acct_req_position_effect : ex_acct_req_position_effect;
-    wire [QTY_W-1:0] state_req_order_qty = (owner == OWNER_CL) ? cl_acct_req_order_qty : ex_acct_req_order_qty;
-    wire [QTY_W-1:0] state_req_fill_qty = (owner == OWNER_CL) ? cl_acct_req_fill_qty : ex_acct_req_fill_qty;
-    wire [QTY_W-1:0] state_req_release_qty = (owner == OWNER_CL) ? cl_acct_req_release_qty : ex_acct_req_release_qty;
+    wire [7:0] state_req_account_id = route_cl_state ? cl_acct_req_account_id : ex_acct_req_account_id;
+    wire [7:0] state_req_product_id = route_cl_state ? cl_acct_req_product_id : ex_acct_req_product_id;
+    wire [2:0] state_req_event_kind = route_cl_state ? cl_acct_req_event_kind : ex_acct_req_event_kind;
+    wire state_req_side = route_cl_state ? cl_acct_req_side : ex_acct_req_side;
+    wire [7:0] state_req_position_effect = route_cl_state ? cl_acct_req_position_effect : ex_acct_req_position_effect;
+    wire [QTY_W-1:0] state_req_order_qty = route_cl_state ? cl_acct_req_order_qty : ex_acct_req_order_qty;
+    wire [QTY_W-1:0] state_req_fill_qty = route_cl_state ? cl_acct_req_fill_qty : ex_acct_req_fill_qty;
+    wire [QTY_W-1:0] state_req_release_qty = route_cl_state ? cl_acct_req_release_qty : ex_acct_req_release_qty;
     wire state_rsp_ready = (owner == OWNER_CL) ? cl_acct_rsp_ready :
                            (owner == OWNER_EX) ? ex_acct_rsp_ready : 1'b0;
     wire state_req_ready_i, state_rsp_valid_i, state_rsp_ok_i;
     wire [1:0] state_rsp_reason_source_i;
     wire [7:0] state_rsp_reason_code_i;
 
-    assign cl_acct_req_ready = (owner == OWNER_CL) ? state_req_ready_i : 1'b0;
+    assign cl_acct_req_ready = route_cl_state ? state_req_ready_i : 1'b0;
     assign ex_acct_req_ready = (owner == OWNER_EX) ? state_req_ready_i : 1'b0;
     assign cl_acct_rsp_valid = (owner == OWNER_CL) ? state_rsp_valid_i : 1'b0;
     assign ex_acct_rsp_valid = (owner == OWNER_EX) ? state_rsp_valid_i : 1'b0;
@@ -372,18 +378,19 @@ module hft_rmic_shared_core_v1 #(
     // ------------------------------------------------------------------
     wire prospective_ex = owner_none && runtime_idle && exec_commit_valid;
     wire route_ex_store = (owner == OWNER_EX) || prospective_ex;
-    wire store_req_valid_i = (owner == OWNER_CL) ? cl_store_req_valid :
+    wire route_cl_store = (owner == OWNER_CL) || prospective_cl;
+    wire store_req_valid_i = route_cl_store ? cl_store_req_valid :
                              route_ex_store ? ex_store_req_valid : 1'b0;
-    wire [1:0] store_req_op_i = (owner == OWNER_CL) ? cl_store_req_op : ex_store_req_op;
-    wire [31:0] store_req_order_id_i = (owner == OWNER_CL) ? cl_store_req_order_id : ex_store_req_order_id;
-    wire [7:0] store_req_account_id_i = (owner == OWNER_CL) ? cl_store_req_account_id : ex_store_req_account_id;
-    wire [7:0] store_req_product_id_i = (owner == OWNER_CL) ? cl_store_req_product_id : ex_store_req_product_id;
-    wire store_req_side_i = (owner == OWNER_CL) ? cl_store_req_side : ex_store_req_side;
-    wire [7:0] store_req_position_effect_i = (owner == OWNER_CL) ? cl_store_req_position_effect : ex_store_req_position_effect;
-    wire [7:0] store_req_order_type_i = (owner == OWNER_CL) ? cl_store_req_order_type : ex_store_req_order_type;
-    wire [7:0] store_req_tif_i = (owner == OWNER_CL) ? cl_store_req_tif : ex_store_req_tif;
-    wire [31:0] store_req_limit_price_i = (owner == OWNER_CL) ? cl_store_req_limit_price : ex_store_req_limit_price;
-    wire [QTY_W-1:0] store_req_remaining_qty_i = (owner == OWNER_CL) ? cl_store_req_remaining_qty : ex_store_req_remaining_qty;
+    wire [1:0] store_req_op_i = route_cl_store ? cl_store_req_op : ex_store_req_op;
+    wire [31:0] store_req_order_id_i = route_cl_store ? cl_store_req_order_id : ex_store_req_order_id;
+    wire [7:0] store_req_account_id_i = route_cl_store ? cl_store_req_account_id : ex_store_req_account_id;
+    wire [7:0] store_req_product_id_i = route_cl_store ? cl_store_req_product_id : ex_store_req_product_id;
+    wire store_req_side_i = route_cl_store ? cl_store_req_side : ex_store_req_side;
+    wire [7:0] store_req_position_effect_i = route_cl_store ? cl_store_req_position_effect : ex_store_req_position_effect;
+    wire [7:0] store_req_order_type_i = route_cl_store ? cl_store_req_order_type : ex_store_req_order_type;
+    wire [7:0] store_req_tif_i = route_cl_store ? cl_store_req_tif : ex_store_req_tif;
+    wire [31:0] store_req_limit_price_i = route_cl_store ? cl_store_req_limit_price : ex_store_req_limit_price;
+    wire [QTY_W-1:0] store_req_remaining_qty_i = route_cl_store ? cl_store_req_remaining_qty : ex_store_req_remaining_qty;
     wire store_rsp_ready_i = (owner == OWNER_CL) ? cl_store_rsp_ready :
                              (owner == OWNER_EX) ? ex_store_rsp_ready : 1'b0;
 
@@ -397,7 +404,7 @@ module hft_rmic_shared_core_v1 #(
     wire [2:0] store_rsp_bank_unused;
     wire store_rsp_stash_unused;
 
-    assign cl_store_req_ready = (owner == OWNER_CL) ? store_req_ready_i : 1'b0;
+    assign cl_store_req_ready = route_cl_store ? store_req_ready_i : 1'b0;
     assign ex_store_req_ready = route_ex_store ? store_req_ready_i : 1'b0;
     assign cl_store_rsp_valid = (owner == OWNER_CL) ? store_rsp_valid_i : 1'b0;
     assign ex_store_rsp_valid = (owner == OWNER_EX) ? store_rsp_valid_i : 1'b0;
@@ -438,7 +445,6 @@ module hft_rmic_shared_core_v1 #(
     );
 
     // Transaction owner and sticky recovery state.
-    wire cl_fire = cl_order_valid_i && cl_order_ready;
     wire ex_fire = ex_commit_valid_i && ex_commit_ready_i;
     wire cl_done = (owner == OWNER_CL) && cl_result_valid && cl_result_ready;
     wire ex_done = (owner == OWNER_EX) && ex_result_valid_i && ex_result_ready_i;

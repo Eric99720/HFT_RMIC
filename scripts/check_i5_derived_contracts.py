@@ -27,6 +27,7 @@ checks = {
         "ENABLE_L0_STATE_CACHE(1)",
         "ENABLE_FAST_CONTEXT_AMU(1)",
         "ENABLE_FAST_SUCCESS_JOIN(1)",
+        "ENABLE_PROSPECTIVE_CL_ISSUE(1)",
         "financial_protocol_encoder_session_top",
     ],
     "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv": [
@@ -79,6 +80,14 @@ if "ENABLE_FAST_CONTEXT_AMU(1)" not in app:
     errors.append("I5 fast context AMU is not enabled in the full-system app")
 if "ENABLE_FAST_SUCCESS_JOIN(1)" not in app:
     errors.append("I5 fast atomic success join is not enabled in the full-system app")
+if "ENABLE_PROSPECTIVE_CL_ISSUE(1)" not in app:
+    errors.append("I5 prospective CL issue is not enabled in the full-system app")
+
+shared = (root / "rtl/integration/hft_rmic_shared_core_v1.sv").read_text(encoding="utf-8")
+for token in ("wire prospective_cl", "route_cl_state", "route_cl_store"):
+    if token not in shared:
+        errors.append(f"I5 shared core lacks prospective CL ownership/routing token: {token}")
+
 
 
 

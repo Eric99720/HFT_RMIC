@@ -29,6 +29,17 @@ Run `pwsh .\scripts\setup.ps1` or `python -B scripts/check_dependency_contracts.
 - **Configuration and readiness are transactional.** No order may be released to the exchange before mappings, product/account policy, futures accounting, RMIC AMU initialization, and recovery state are ready.
 - **Reset/recovery is a safety boundary.** FPGA reset must not imply exchange outstanding orders disappeared. Keep the integration fail-closed until the selected recovery protocol re-establishes state.
 
+## RTL implementation rules
+
+- **Verilog only.** Write integration-owned synthesizable RTL in Verilog (IEEE 1364-2005), using `.v` modules and `.vh` headers. This includes adapters, wrappers and OOC tops. Do not introduce SystemVerilog or VHDL RTL, or hide SystemVerilog syntax behind a `.v` extension. Simulation-only testbenches may retain SystemVerilog; keep their constructs out of synthesizable sources.
+- **Preserve baseline provenance during migration.** Existing integration-owned `.sv`/`.svh` files are a recorded legacy migration backlog, not evidence of Verilog compliance. When changing a legacy module's synthesizable logic, migrate the affected module and integration-owned headers it needs, update all file lists/includes/runners, and verify behavior before claiming compliance. A repository-wide conversion is a separate scoped change. Frozen `deps/` and vendor-generated IP remain untouched; custom wrappers follow this policy.
+- **Use explicit arithmetic contracts.** Specify widths, signedness, extension and truncation for quantities, prices, balances, counters and intermediate arithmetic. Check underflow/overflow before committing state; reject or enter recovery as required by the existing fail-closed contract.
+- **Keep combinational and sequential intent clear.** Use complete combinational assignments with `always @*` and blocking assignments; use nonblocking assignments for clocked state. Keep one procedural owner per register and avoid unintended latches. Treat synthesis/lint findings about latches, multiple drivers or truncation as issues to resolve or justify with evidence.
+- **Preserve clock and reset boundaries.** Document each changed interface's clock/reset domain. Cross asynchronous domains using an appropriate synchronizer, handshake or asynchronous FIFO; do not independently synchronize bits of a coherent bus. Release asynchronous reset synchronously in each affected domain. Timing exceptions must express verified clock/protocol relationships, not conceal failing paths.
+- **Make transfer ownership observable.** For ready/valid interfaces, transfer only on `valid && ready` and hold payload/metadata stable under backpressure unless the documented protocol explicitly differs. Account for pulse-only sources with lossless capture or an explicit fail-closed overflow path. Regression cases must cover the changed stall, reset and ordering behavior.
+
+For a language migration, check the integration-owned source in Verilog mode as well as the required mixed-language integration regression. A passing `-sv`/`-g2012` build alone does not establish Verilog compliance. Preserve exact source/report provenance and the existing functional and timing acceptance criteria.
+
 ## Evidence and claim boundaries
 
 Keep these evidence levels separate:
@@ -46,6 +57,8 @@ For protocol semantics, prefer the frozen authoritative TAIFEX references under 
 ## Verification rules
 
 Every functional state mutation requires a self-checking regression. Every integration milestone must define acceptance criteria before sign-off. Verify proportionally, but broaden tests for shared interfaces, accounting, replay/dedup, ordering, or timing-sensitive changes.
+
+Select checks according to the changed scope. For instruction/documentation-only changes, use `pwsh .\scripts\preflight.ps1 -SkipFunctional` plus record/reference and diff checks. RTL, accounting, replay, interface or timing changes still require the affected functional checks and the phase's broader acceptance gates. Reuse valid results only when their source and scope still apply.
 
 Core checks from repository root:
 
@@ -75,6 +88,12 @@ Before publishing changes, inspect branch/HEAD and exact diff. Commit reviewable
 Do not commit feature work directly to `main`, force-push shared history, bypass required checks, merge failing CI, publish secrets/raw market data, or push changes into the two upstream source repositories.
 
 Independent repository-governance maintenance may use `codex/repository-maintenance`; otherwise governance changes supporting an active phase remain on that phase branch.
+
+At every completed research/integration phase, synchronize all publishable code, configuration, tests, documentation and reviewed evidence to GitHub. This is standing authorization for scoped commits, pushes and updates to the existing phase PR; follow the phase-completion transaction in `docs/project_management_workflow.md`. Report synchronization as complete only after the remote branch matches the local commit and delivery status is verified. Preserve the existing merge/acceptance and sensitive/raw-data boundaries.
+
+## Long-running tasks
+
+For OOC synthesis, implementation, simulation or other long jobs, follow the low-frequency monitoring procedure in `docs/project_management_workflow.md`. Prefer deterministic status checks and completion events; use scheduled checks rather than repeated model polling. Keep the run independent of the conversation and resume on completion, failure or an actionable change.
 
 ## Project records and handoff
 
@@ -111,7 +130,7 @@ Follow `docs/repository_layout.md` and `docs/results_policy.md`.
 
 ## Current project direction
 
-The frozen RMIC M5.4 core is architecturally complete as a generic transactional RM engine, but TAIFEX futures semantics are integration responsibilities. Current priorities are futures-aware multi-account/product state, committed R02/R32 execution reconciliation, policy/rate/outstanding controls, then full HFT insertion and A/B latency/resource validation.
+The frozen RMIC M5.4 core is the generic transactional baseline; TAIFEX futures semantics remain integration responsibilities. Current phase, priorities, next action, and evidence status are owned by `docs/project_state.json` and the active ExecPlan.
 
 A separately audited junior U50/network bundle is a candidate for a later dedicated network/PHY migration phase only. Do not replace the frozen HFT submodule wholesale. Selectively port independently verified network fixes against the then-current source, preserve official TAIFEX BODY-LENGTH semantics, pin external PHY dependencies exactly, and require matched regression/hardware A/B evidence before any HFT source-pin change.
 

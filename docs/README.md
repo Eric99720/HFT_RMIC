@@ -30,6 +30,11 @@ The authoritative TAIFEX protocol references themselves remain in the pinned HFT
 - [`results/i2_futures_state_ooc_postroute.md`](results/i2_futures_state_ooc_postroute.md) — I2 real-AMU U50 OOC/post-route closure, timing-repair history, resources, DRC and claim limits.
 - [`results/i3_atomic_cl2ex_ooc_postroute.md`](results/i3_atomic_cl2ex_ooc_postroute.md) — I3 atomic CL2EX mapping/policy/reserve/rollback plus real-AMU U50 OOC closure.
 
+- [`results/i4_r01_byte_parity_xsim.md`](results/i4_r01_byte_parity_xsim.md) — commit-specific corrected-AMU R01 byte parity and reject suppression.
+- [`results/i4_r01_path_ooc_postroute.md`](results/i4_r01_path_ooc_postroute.md) — I4 real-XPM U50 post-route OOC evidence and claim limits.
+- [`results/i5_latency_recovery_candidate.md`](results/i5_latency_recovery_candidate.md) — historical I5 functional/physical A/B and completed 43-cycle SC5 sweep; later candidate acceptance remains separate.
+- [`exec_plans/2026-09-18-i5-full-dual-xgmii-integration.md`](exec_plans/2026-09-18-i5-full-dual-xgmii-integration.md) — owning I5 acceptance gates, candidate provenance and governance reconciliation.
+
 ## Historical/current ledgers
 
 At repository root:

@@ -110,3 +110,6 @@ jobs:
 
       - name: Run I5 fast atomic success-join regression
         run: bash scripts/run_i5_fast_success_join_iverilog.sh
+
+      - name: Run I5 prospective CL issue regression
+        run: bash scripts/run_i5_prospective_cl_issue_iverilog.sh

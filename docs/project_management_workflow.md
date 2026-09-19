@@ -31,7 +31,7 @@ Do not create duplicate `*-status`, `*-ready`, `*-pending`, `*-final2`, or backu
 
 ## Material state update
 
-On implementation completion, discovered architecture gap, failed test, protocol-semantic correction, timing result, or phase transition:
+Apply this transaction when evidence changes acceptance, architecture, protocol semantics, blocking status, the next action, or phase handoff. Record routine debugging outcomes at a reviewable milestone; an intermediate test failure alone does not require a full state update. Preserve failures that explain a design decision or invalidate earlier evidence.
 
 1. Update the owning ExecPlan with observed evidence and limits.
 2. Append `DECISIONS.md` only if the rationale or durable architecture choice changed.
@@ -46,7 +46,7 @@ git diff --check
 ```
 
 5. Run scope-relevant functional/timing checks.
-6. Review the diff and publish one reviewable milestone commit to the phase branch.
+6. Review and publish milestones according to the active phase's authorization and acceptance requirements. A failed intermediate check alone is not a publication trigger.
 
 ## Task lifecycle
 
@@ -75,6 +75,26 @@ One coherent integration phase uses one branch and one PR from design through im
 - Never force-push shared history or feature-commit directly to `main`.
 
 After merge, update/prune local refs only after verifying the branch is contained in main and no worktree/PR still needs it.
+
+## Phase-completion synchronization
+
+The user's standing instruction authorizes routine phase delivery without another per-step approval. At each completed research/integration phase:
+
+1. Reconcile the owning ExecPlan, decisions, canonical state, task board and reviewed results with the actual outcome, including negative/inconclusive results and outstanding limits. Generate shared records and run scope-relevant checks.
+2. Inspect the full diff, untracked files and artifact references. Include all publishable source, configuration, tests and documentation needed to reproduce the phase. Under `docs/results_policy.md`, keep secrets, raw/private data, full Vivado trees and local settings out of Git; publish compact provenance and artifact identities/hashes instead. Missing evidence must be recorded, not silently treated as synchronized.
+3. Commit the reviewed file set, push the existing phase branch, and update its existing PR with results, verification and remaining acceptance gates. Inspect remote changes first; preserve other work and shared history. Existing stacked PRs remain intact until their dependencies and acceptance are reconciled; do not create more branches merely for routine follow-ups.
+4. Verify local/remote commit equality and inspect CI on the delivered head. A push is not a merge or phase acceptance. Merge only under the existing acceptance/CI rules; if publication or required checks fail, record the delivery blocker and do not declare full phase closure.
+5. Return the delivered commit, PR and check status. Live GitHub commit/check links own post-push delivery status; avoid repeated documentation commits solely to embed their own SHA or refresh a pending CI label.
+
+## Low-frequency monitoring
+
+At launch, record the run ID, source/configuration, command, PID/job identity, output paths, expected completion evidence and selected cadence in the owning ExecPlan or ignored run manifest. Let the process run independently of the conversation.
+
+- Default to a check every 10 minutes for long jobs. Use 30-60 minutes for healthy multi-hour OOC/implementation runs; use 5 minutes when an expected transition is near. Adjust to observed duration and detection needs, and record the choice. Shorten temporarily only for a concrete anomaly.
+- Prefer an existing deterministic watcher or process/job completion event. Read compact status, exit state and log freshness; inspect only the new relevant log tail when needed. A deterministic check need not invoke a model. Avoid repeated full-log reads, token-consuming polling loops, and short sleep/wake cycles.
+- If model follow-up is necessary, use the available scheduler with the chosen interval and reuse/update an existing monitor for that run. Keep unchanged, healthy state quiet; notify only on completion, failure, a meaningful transition or required user action. Disable the monitor when the run ends. If scheduling is unavailable, provide the recorded check command and next check time without claiming autonomous follow-up.
+- Confirm completion using the runner's exit code and required result/report markers. A missing PID, stale log or partial report alone is not success; investigate freshness against expected stage duration before declaring a stall.
+- Monitoring observes the authorized run. Restarting, cancelling, changing sources/configuration or launching another attempt requires the active task's authority and preservation of prior evidence. After completion, review results and perform the applicable material-state/phase-delivery transaction.
 
 ## Handoff content
 
