@@ -24,7 +24,8 @@ module hft_rmic_shared_core_v1 #(
     parameter integer ENABLE_HOT_MAP_CACHE = 0,
     parameter integer ENABLE_PARALLEL_CL_ADMISSION = 0,
     parameter integer ENABLE_L0_STATE_CACHE = 0,
-    parameter integer ENABLE_FAST_CONTEXT_AMU = 0
+    parameter integer ENABLE_FAST_CONTEXT_AMU = 0,
+    parameter integer ENABLE_FAST_SUCCESS_JOIN = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -228,7 +229,8 @@ module hft_rmic_shared_core_v1 #(
         .ACCOUNT_MAP_ENTRIES(ACCOUNT_MAP_ENTRIES),
         .PRODUCT_MAP_ENTRIES(PRODUCT_MAP_ENTRIES),
         .ENABLE_HOT_MAP_CACHE(ENABLE_HOT_MAP_CACHE),
-        .ENABLE_PARALLEL_ADMISSION(ENABLE_PARALLEL_CL_ADMISSION)
+        .ENABLE_PARALLEL_ADMISSION(ENABLE_PARALLEL_CL_ADMISSION),
+        .ENABLE_FAST_SUCCESS_JOIN(ENABLE_FAST_SUCCESS_JOIN)
     ) u_order_gate (
         .clk(clk), .rst_n(rst_n),
         .integration_ready(effective_integration_ready),
