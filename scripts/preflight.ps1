@@ -122,6 +122,10 @@ try {
             Write-Host '[HFT_RMIC] Running I5 fast atomic success-join regression...'
             & $bash.Source scripts/run_i5_fast_success_join_iverilog.sh
             if ($LASTEXITCODE -ne 0) { throw 'I5 fast success-join regression failed' }
+
+            Write-Host '[HFT_RMIC] Running I5 prospective CL issue regression...'
+            & $bash.Source scripts/run_i5_prospective_cl_issue_iverilog.sh
+            if ($LASTEXITCODE -ne 0) { throw 'I5 prospective CL issue regression failed' }
         }
     }
 
