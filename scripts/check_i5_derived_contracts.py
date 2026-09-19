@@ -24,6 +24,7 @@ checks = {
         "hft_rmic_shared_core_v1",
         "ENABLE_HOT_MAP_CACHE(1)",
         "ENABLE_PARALLEL_CL_ADMISSION(1)",
+        "ENABLE_L0_STATE_CACHE(1)",
         "financial_protocol_encoder_session_top",
     ],
     "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv": [
@@ -70,6 +71,9 @@ if "hot_account_key(cfg_investor_acno)" not in app or "hot_product_key(cfg_symbo
     errors.append("I5 latency-recovery app does not pre-resolve bridge-owned mapping keys")
 if "ENABLE_PARALLEL_CL_ADMISSION(1)" not in app:
     errors.append("I5 parallel-admission candidate is not enabled in the full-system app")
+if "ENABLE_L0_STATE_CACHE(1)" not in app:
+    errors.append("I5 L0 futures-state cache is not enabled in the full-system app")
+
 
 
 net = (root / "rtl/integration/hft_rmic_xgmii_network_layer_e2e_top_v1.sv").read_text(encoding="utf-8")

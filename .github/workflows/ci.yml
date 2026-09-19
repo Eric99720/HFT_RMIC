@@ -101,3 +101,6 @@ jobs:
 
       - name: Run I5 parallel atomic admission regression
         run: bash scripts/run_i5_parallel_admission_iverilog.sh
+
+      - name: Run I5 L0 futures-state cache regression
+        run: bash scripts/run_i5_l0_state_cache_iverilog.sh

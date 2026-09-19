@@ -21,13 +21,20 @@
 //
 //   Transaction throughput remains serialized by design; only response latency
 //   increases. Accounting semantics and ready/valid behavior are unchanged.
+//
+// I5 optional L0 cache:
+//   ENABLE_L0_FAST_CACHE adds a single coherent write-through hot-key record.
+//   A hit bypasses both BRAM CAPTURE and PREP, entering ST_MARGIN directly.
+//   Misses retain the original BRAM path, and reset/config/mutation coherence
+//   preserves the backing BRAM as the authoritative full table.
 module hft_rmic_futures_state_manager_v1 #(
     parameter integer NUM_ACCOUNTS = 16,
     parameter integer NUM_PRODUCTS = 16,
     parameter integer ACCOUNT_ID_W = 8,
     parameter integer PRODUCT_ID_W = 8,
     parameter integer QTY_W = 32,
-    parameter integer MARGIN_W = 64
+    parameter integer MARGIN_W = 64,
+    parameter integer ENABLE_L0_FAST_CACHE = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -102,6 +109,14 @@ module hft_rmic_futures_state_manager_v1 #(
     reg [2:0] state;
     reg [ENTRY_COUNT-1:0] configured_bits;
 
+    // Optional coherent L0 state cache for the hot account/product key.
+    // It is write-through to the authoritative BRAM state table and is
+    // invalidated by reset.  Generic I2/I3/I4 users leave it disabled.
+    reg                  l0_valid;
+    reg [ADDR_W-1:0]     l0_index;
+    reg [REC_W-1:0]      l0_record;
+    reg                  l0_configured;
+
     function automatic [ADDR_W-1:0] make_index;
         input [ACCOUNT_ID_W-1:0] account_id;
         input [PRODUCT_ID_W-1:0] product_id;
@@ -116,6 +131,8 @@ module hft_rmic_futures_state_manager_v1 #(
                          (req_product_id < NUM_PRODUCTS);
     wire [ADDR_W-1:0] cfg_index = make_index(cfg_account_id, cfg_product_id);
     wire [ADDR_W-1:0] req_index = make_index(req_account_id, req_product_id);
+    wire l0_hit = (ENABLE_L0_FAST_CACHE != 0) &&
+                  l0_valid && req_key_valid && (l0_index == req_index);
 
     assign cfg_ready = (state == ST_IDLE) && !rsp_valid;
     wire cfg_fire = cfg_valid && cfg_ready;
@@ -144,7 +161,7 @@ module hft_rmic_futures_state_manager_v1 #(
     // State BRAM and first pipeline register.
     // ---------------------------------------------------------------------
     wire [REC_W-1:0] ram_rd_data;
-    wire ram_rd_en = req_fire && req_key_valid;
+    wire ram_rd_en = req_fire && req_key_valid && !l0_hit;
     wire [ADDR_W-1:0] ram_rd_addr = req_index;
 
     reg [REC_W-1:0] rec_latched;
@@ -161,6 +178,18 @@ module hft_rmic_futures_state_manager_v1 #(
     wire [QTY_W-1:0] rec_pending_short = rec_latched[REC_PENDING_SHORT_LSB +: QTY_W];
     wire [QTY_W-1:0] rec_reserved_long = rec_latched[REC_RESERVED_LONG_LSB +: QTY_W];
     wire [QTY_W-1:0] rec_reserved_short = rec_latched[REC_RESERVED_SHORT_LSB +: QTY_W];
+
+    wire l0_enabled = l0_record[REC_ENABLED_BIT];
+    wire [MARGIN_W-1:0] l0_margin_budget =
+        l0_record[REC_MARGIN_BUDGET_LSB +: MARGIN_W];
+    wire [MARGIN_W-1:0] l0_margin_per_contract =
+        l0_record[REC_MARGIN_PER_CONTRACT_LSB +: MARGIN_W];
+    wire [QTY_W-1:0] l0_long = l0_record[REC_LONG_LSB +: QTY_W];
+    wire [QTY_W-1:0] l0_short = l0_record[REC_SHORT_LSB +: QTY_W];
+    wire [QTY_W-1:0] l0_pending_long = l0_record[REC_PENDING_LONG_LSB +: QTY_W];
+    wire [QTY_W-1:0] l0_pending_short = l0_record[REC_PENDING_SHORT_LSB +: QTY_W];
+    wire [QTY_W-1:0] l0_reserved_long = l0_record[REC_RESERVED_LONG_LSB +: QTY_W];
+    wire [QTY_W-1:0] l0_reserved_short = l0_record[REC_RESERVED_SHORT_LSB +: QTY_W];
 
     // ---------------------------------------------------------------------
     // Quantity/state transition stage. No wide margin multiply exists here.
@@ -203,6 +232,48 @@ module hft_rmic_futures_state_manager_v1 #(
         .next_reserved_close_short(transition_next_reserved_short),
         .gross_before(transition_gross_before),
         .gross_after_candidate(transition_gross_after)
+    );
+
+    // Cache-hit transition uses the live request and cached record so the
+    // BRAM CAPTURE and registered PREP stages can both be bypassed.
+    wire fast_transition_ok;
+    wire [7:0] fast_transition_reason;
+    wire fast_transition_margin_check_required;
+    wire [QTY_W-1:0] fast_transition_next_long;
+    wire [QTY_W-1:0] fast_transition_next_short;
+    wire [QTY_W-1:0] fast_transition_next_pending_long;
+    wire [QTY_W-1:0] fast_transition_next_pending_short;
+    wire [QTY_W-1:0] fast_transition_next_reserved_long;
+    wire [QTY_W-1:0] fast_transition_next_reserved_short;
+    wire [SUM_W-1:0] fast_transition_gross_before;
+    wire [SUM_W-1:0] fast_transition_gross_after;
+
+    hft_rmic_futures_transition_v1 #(
+        .QTY_W(QTY_W)
+    ) u_fast_transition (
+        .event_kind(req_event_kind),
+        .side(req_side),
+        .position_effect(req_position_effect),
+        .order_qty(req_order_qty),
+        .fill_qty(req_fill_qty),
+        .release_qty(req_release_qty),
+        .long_position(l0_long),
+        .short_position(l0_short),
+        .pending_open_long(l0_pending_long),
+        .pending_open_short(l0_pending_short),
+        .reserved_close_long(l0_reserved_long),
+        .reserved_close_short(l0_reserved_short),
+        .transition_ok(fast_transition_ok),
+        .reason_code(fast_transition_reason),
+        .margin_check_required(fast_transition_margin_check_required),
+        .next_long_position(fast_transition_next_long),
+        .next_short_position(fast_transition_next_short),
+        .next_pending_open_long(fast_transition_next_pending_long),
+        .next_pending_open_short(fast_transition_next_pending_short),
+        .next_reserved_close_long(fast_transition_next_reserved_long),
+        .next_reserved_close_short(fast_transition_next_reserved_short),
+        .gross_before(fast_transition_gross_before),
+        .gross_after_candidate(fast_transition_gross_after)
     );
 
     reg prep_transition_ok;
@@ -365,6 +436,10 @@ module hft_rmic_futures_state_manager_v1 #(
         if (!rst_n) begin
             state <= ST_IDLE;
             configured_bits <= {ENTRY_COUNT{1'b0}};
+            l0_valid <= 1'b0;
+            l0_index <= {ADDR_W{1'b0}};
+            l0_record <= {REC_W{1'b0}};
+            l0_configured <= 1'b0;
 
             cfg_done <= 1'b0;
             cfg_ok <= 1'b0;
@@ -438,8 +513,23 @@ module hft_rmic_futures_state_manager_v1 #(
                 cfg_reason_code <= cfg_key_valid ?
                     `HFT_RMIC_POLICY_REASON_PASS :
                     `HFT_RMIC_POLICY_REASON_STATE_KEY_INVALID;
-                if (cfg_key_valid)
+                if (cfg_key_valid) begin
                     configured_bits[cfg_index] <= 1'b1;
+                    if (ENABLE_L0_FAST_CACHE != 0) begin
+                        l0_valid <= 1'b1;
+                        l0_index <= cfg_index;
+                        l0_record <= cfg_record;
+                        l0_configured <= 1'b1;
+                    end
+                end
+            end
+
+            // Keep the L0 copy coherent with every successful state mutation.
+            if ((ENABLE_L0_FAST_CACHE != 0) && txn_commit) begin
+                l0_valid <= 1'b1;
+                l0_index <= req_index_latched;
+                l0_record <= commit_record;
+                l0_configured <= 1'b1;
             end
 
             case (state)
@@ -455,7 +545,41 @@ module hft_rmic_futures_state_manager_v1 #(
                         req_order_qty_latched <= req_order_qty;
                         req_fill_qty_latched <= req_fill_qty;
                         req_release_qty_latched <= req_release_qty;
-                        state <= ST_CAPTURE;
+
+                        if (l0_hit) begin
+                            // Directly materialize the PREP registers from the
+                            // coherent cache.  This removes two hot-path cycles:
+                            // BRAM CAPTURE and the registered PREP stage.
+                            rec_latched <= l0_record;
+                            entry_configured_latched <= l0_configured;
+
+                            prep_transition_ok <= fast_transition_ok;
+                            prep_transition_reason <= fast_transition_reason;
+                            prep_margin_check_required <= fast_transition_margin_check_required;
+                            prep_entry_configured <= l0_configured;
+                            prep_enabled <= l0_enabled;
+                            prep_margin_budget <= l0_margin_budget;
+                            prep_margin_per_contract <= l0_margin_per_contract;
+                            prep_gross_before <= fast_transition_gross_before;
+                            prep_gross_after <= fast_transition_gross_after;
+
+                            prep_current_long <= l0_long;
+                            prep_current_short <= l0_short;
+                            prep_current_pending_long <= l0_pending_long;
+                            prep_current_pending_short <= l0_pending_short;
+                            prep_current_reserved_long <= l0_reserved_long;
+                            prep_current_reserved_short <= l0_reserved_short;
+
+                            prep_next_long <= fast_transition_next_long;
+                            prep_next_short <= fast_transition_next_short;
+                            prep_next_pending_long <= fast_transition_next_pending_long;
+                            prep_next_pending_short <= fast_transition_next_pending_short;
+                            prep_next_reserved_long <= fast_transition_next_reserved_long;
+                            prep_next_reserved_short <= fast_transition_next_reserved_short;
+                            state <= ST_MARGIN;
+                        end else begin
+                            state <= ST_CAPTURE;
+                        end
                     end
                 end
 
@@ -466,6 +590,12 @@ module hft_rmic_futures_state_manager_v1 #(
                     rec_latched <= req_key_valid_latched ? ram_rd_data : {REC_W{1'b0}};
                     entry_configured_latched <= req_key_valid_latched &&
                                                 configured_bits[req_index_latched];
+                    if ((ENABLE_L0_FAST_CACHE != 0) && req_key_valid_latched) begin
+                        l0_valid <= 1'b1;
+                        l0_index <= req_index_latched;
+                        l0_record <= ram_rd_data;
+                        l0_configured <= configured_bits[req_index_latched];
+                    end
                     state <= ST_PREP;
                 end
 

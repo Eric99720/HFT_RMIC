@@ -22,7 +22,8 @@ module hft_rmic_shared_core_v1 #(
     parameter integer ACCOUNT_MAP_INDEX_W = (ACCOUNT_MAP_ENTRIES <= 1) ? 1 : $clog2(ACCOUNT_MAP_ENTRIES),
     parameter integer PRODUCT_MAP_INDEX_W = (PRODUCT_MAP_ENTRIES <= 1) ? 1 : $clog2(PRODUCT_MAP_ENTRIES),
     parameter integer ENABLE_HOT_MAP_CACHE = 0,
-    parameter integer ENABLE_PARALLEL_CL_ADMISSION = 0
+    parameter integer ENABLE_PARALLEL_CL_ADMISSION = 0,
+    parameter integer ENABLE_L0_STATE_CACHE = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -335,7 +336,10 @@ module hft_rmic_shared_core_v1 #(
     assign ex_acct_rsp_reason_code = state_rsp_reason_code_i;
 
     assign cfg_ready = owner_none && state_cfg_ready;
-    hft_rmic_futures_state_manager_v1 #(.QTY_W(QTY_W), .MARGIN_W(MARGIN_W)) u_state (
+    hft_rmic_futures_state_manager_v1 #(
+        .QTY_W(QTY_W), .MARGIN_W(MARGIN_W),
+        .ENABLE_L0_FAST_CACHE(ENABLE_L0_STATE_CACHE)
+    ) u_state (
         .clk(clk), .rst_n(rst_n),
         .cfg_valid(cfg_valid && owner_none), .cfg_ready(state_cfg_ready),
         .cfg_account_id(cfg_account_id), .cfg_product_id(cfg_product_id),
