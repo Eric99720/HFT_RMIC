@@ -104,3 +104,6 @@ jobs:
 
       - name: Run I5 L0 futures-state cache regression
         run: bash scripts/run_i5_l0_state_cache_iverilog.sh
+
+      - name: Run I5 fast AMU latency regression
+        run: bash scripts/run_i5_fast_amu_iverilog.sh
