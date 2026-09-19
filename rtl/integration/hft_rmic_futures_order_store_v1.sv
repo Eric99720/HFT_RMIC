@@ -1,8 +1,10 @@
 `timescale 1ns/1ps
 
 // Futures-aware outstanding-order context packed into the frozen RMIC 96-bit
-// AMU value.  This wrapper owns no hash implementation; it deliberately binds
-// to `amu_banked_double_hash_v2` from the pinned RMIC dependency at synthesis.
+// AMU value. Generic users deliberately bind to the pinned
+// `amu_banked_double_hash_v2`. I5 may select an integration-owned derivative
+// that removes only the frozen s0 request register to reduce AMU round-trip
+// latency while preserving bank/hash/stash semantics.
 //
 // Payload (89/96 bits default):
 //   account_id(8), product_id(8), side(1), PositionEffect(8), OrdType(8),
@@ -20,7 +22,8 @@ module hft_rmic_futures_order_store_v1 #(
     parameter integer PRODUCT_ID_W = 8,
     parameter integer PRICE_W = 32,
     parameter integer QTY_W = 16,
-    parameter integer AMU_VALUE_W = 96
+    parameter integer AMU_VALUE_W = 96,
+    parameter integer ENABLE_FAST_AMU = 0
 ) (
     input  wire clk,
     input  wire rst_n,
@@ -87,21 +90,41 @@ module hft_rmic_futures_order_store_v1 #(
     assign rsp_limit_price = rsp_value[PRICE_LSB +: PRICE_W];
     assign rsp_remaining_qty = rsp_value[QTY_LSB +: QTY_W];
 
-    amu_banked_double_hash_v2 #(
-        .TABLE_SIZE(TABLE_SIZE),
-        .BANKS(BANKS),
-        .STASH_SIZE(STASH_SIZE),
-        .KEY_W(ORDER_ID_W),
-        .VALUE_W(AMU_VALUE_W)
-    ) u_frozen_amu (
-        .clk(clk), .rst_n(rst_n),
-        .req_valid(req_valid), .req_ready(req_ready),
-        .req_op(req_op), .req_key(req_order_id), .req_value(req_value),
-        .rsp_valid(rsp_valid), .rsp_ready(rsp_ready),
-        .rsp_ok(rsp_ok), .rsp_found(rsp_found), .rsp_status(rsp_status),
-        .rsp_value(rsp_value), .rsp_bank(rsp_bank),
-        .rsp_in_stash(rsp_in_stash), .init_done(init_done)
-    );
+    generate
+        if (ENABLE_FAST_AMU != 0) begin : g_fast_amu
+            hft_rmic_amu_banked_double_hash_fast_v1 #(
+                .TABLE_SIZE(TABLE_SIZE),
+                .BANKS(BANKS),
+                .STASH_SIZE(STASH_SIZE),
+                .KEY_W(ORDER_ID_W),
+                .VALUE_W(AMU_VALUE_W)
+            ) u_fast_amu (
+                .clk(clk), .rst_n(rst_n),
+                .req_valid(req_valid), .req_ready(req_ready),
+                .req_op(req_op), .req_key(req_order_id), .req_value(req_value),
+                .rsp_valid(rsp_valid), .rsp_ready(rsp_ready),
+                .rsp_ok(rsp_ok), .rsp_found(rsp_found), .rsp_status(rsp_status),
+                .rsp_value(rsp_value), .rsp_bank(rsp_bank),
+                .rsp_in_stash(rsp_in_stash), .init_done(init_done)
+            );
+        end else begin : g_frozen_amu
+            amu_banked_double_hash_v2 #(
+                .TABLE_SIZE(TABLE_SIZE),
+                .BANKS(BANKS),
+                .STASH_SIZE(STASH_SIZE),
+                .KEY_W(ORDER_ID_W),
+                .VALUE_W(AMU_VALUE_W)
+            ) u_frozen_amu (
+                .clk(clk), .rst_n(rst_n),
+                .req_valid(req_valid), .req_ready(req_ready),
+                .req_op(req_op), .req_key(req_order_id), .req_value(req_value),
+                .rsp_valid(rsp_valid), .rsp_ready(rsp_ready),
+                .rsp_ok(rsp_ok), .rsp_found(rsp_found), .rsp_status(rsp_status),
+                .rsp_value(rsp_value), .rsp_bank(rsp_bank),
+                .rsp_in_stash(rsp_in_stash), .init_done(init_done)
+            );
+        end
+    endgenerate
 
     initial begin
         if (AMU_VALUE_W < PAYLOAD_W)
